@@ -16,3 +16,4 @@
 ###> uploads ###
 /public/uploads/
 ###< uploads ###
+.env.dev
