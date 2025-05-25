@@ -2,12 +2,16 @@
 
 namespace App\Controller;
 
+use App\Form\ChatlogFileType;
+use App\Validator\Constraints\ChatlogFile;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Finder\Finder;
+use Symfony\Component\Filesystem\Exception\IOException;
+use Symfony\Component\Validator\Constraints\NotBlank;
 
 class ChatlogController extends AbstractController
 {
@@ -22,43 +26,75 @@ class ChatlogController extends AbstractController
     public function upload(Request $request): Response
     {
         $form = $this->createFormBuilder()
-            ->add('chatlog', \Symfony\Component\Form\Extension\Core\Type\FileType::class, [
+            ->add('chatlog', ChatlogFileType::class, [
                 'label' => 'Fantasy Grounds Chatlog File',
                 'constraints' => [
-                    new \Symfony\Component\Validator\Constraints\File([
-                        'maxSize' => '15M',
-                        'mimeTypes' => [
-                            'text/html',
-                            'application/xhtml+xml',
-                        ],
-                        'mimeTypesMessage' => 'Please upload a valid HTML file',
-                    ])
+                    new NotBlank([
+                        'message' => 'Please select a file to upload'
+                    ]),
+                    new ChatlogFile()
                 ],
             ])
             ->getForm();
 
         $form->handleRequest($request);
 
-        if ($form->isSubmitted() && $form->isValid()) {
-            $file = $form->get('chatlog')->getData();
-            
-            // Create upload directory if it doesn't exist
-            $filesystem = new Filesystem();
-            if (!$filesystem->exists($this->uploadDir)) {
-                $filesystem->mkdir($this->uploadDir);
+        if ($form->isSubmitted()) {
+            if (!$form->isValid()) {
+                $file = $form->get('chatlog')->getData();
+                if ($file) {
+                    $errors = $form->get('chatlog')->getErrors();
+                    $errorMessages = [];
+                    foreach ($errors as $error) {
+                        $errorMessages[] = $error->getMessage();
+                    }
+                    
+                    $this->addFlash('error', sprintf(
+                        'Debug info: Original name: %s, Mime type: %s, Extension: %s, Errors: %s',
+                        $file->getClientOriginalName(),
+                        $file->getMimeType(),
+                        pathinfo($file->getClientOriginalName(), PATHINFO_EXTENSION),
+                        implode(', ', $errorMessages)
+                    ));
+                }
             }
 
-            // Generate unique filename with timestamp
-            $timestamp = date('Y-m-d_H-i-s');
-            $originalName = $file->getClientOriginalName();
-            $extension = pathinfo($originalName, PATHINFO_EXTENSION);
-            $newFilename = $timestamp . '_' . uniqid() . '.' . $extension;
+            if ($form->isValid()) {
+                $file = $form->get('chatlog')->getData();
+                
+                // Create upload directory if it doesn't exist
+                $filesystem = new Filesystem();
+                try {
+                    if (!$filesystem->exists($this->uploadDir)) {
+                        $filesystem->mkdir($this->uploadDir, 0775);
+                    }
+                } catch (IOException $e) {
+                    $this->addFlash('error', 'Unable to create upload directory. Please contact the administrator.');
+                    return $this->redirectToRoute('app_upload');
+                }
 
-            // Move the file to upload directory
-            $file->move($this->uploadDir, $newFilename);
-            
-            $this->addFlash('success', 'File uploaded successfully!');
-            return $this->redirectToRoute('app_chatlog_list');
+                // Check if directory is writable
+                if (!is_writable($this->uploadDir)) {
+                    $this->addFlash('error', 'Upload directory is not writable. Please contact the administrator.');
+                    return $this->redirectToRoute('app_upload');
+                }
+
+                // Generate unique filename with timestamp
+                $timestamp = date('Y-m-d_H-i-s');
+                $originalName = $file->getClientOriginalName();
+                $extension = pathinfo($originalName, PATHINFO_EXTENSION);
+                $newFilename = $timestamp . '_' . uniqid() . '.' . $extension;
+
+                try {
+                    // Move the file to upload directory
+                    $file->move($this->uploadDir, $newFilename);
+                    $this->addFlash('success', 'File uploaded successfully!');
+                    return $this->redirectToRoute('app_chatlog_list');
+                } catch (\Exception $e) {
+                    $this->addFlash('error', 'Failed to save the uploaded file. Please try again or contact the administrator.');
+                    return $this->redirectToRoute('app_upload');
+                }
+            }
         }
 
         return $this->render('chatlog/upload.html.twig', [
