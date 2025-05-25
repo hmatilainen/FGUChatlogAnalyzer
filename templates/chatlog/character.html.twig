@@ -178,18 +178,28 @@
                                     <th>Average</th>
                                     <th>Total Value</th>
                                     <th>Skills Used</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for session in sessions %}
                                     {% if session.characters[character] is defined %}
                                         <tr>
-                                            <td>{{ session.date }}</td>
+                                            <td>
+                                                <a href="{{ path('app_chatlog_session', {'filename': filename, 'date': session.date}) }}" class="text-decoration-none">
+                                                    {{ session.date }}
+                                                </a>
+                                            </td>
                                             <td>{{ session.time }}</td>
                                             <td>{{ session.characters[character].rolls }}</td>
                                             <td>{{ session.characters[character].average }}</td>
                                             <td>{{ session.characters[character].total_value }}</td>
                                             <td>{{ session.characters[character].skills|length }}</td>
+                                            <td>
+                                                <a href="{{ path('app_chatlog_session', {'filename': filename, 'date': session.date}) }}" class="btn btn-sm btn-primary">
+                                                    <i class="fas fa-calendar"></i> View Session
+                                                </a>
+                                            </td>
                                         </tr>
                                     {% endif %}
                                 {% endfor %}

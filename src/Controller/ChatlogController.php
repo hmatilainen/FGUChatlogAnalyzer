@@ -137,4 +137,40 @@ class ChatlogController extends AbstractController
             'sessions' => $analysis['sessions']
         ]);
     }
+
+    #[Route('/chatlog/{filename}/session/{date}', name: 'app_chatlog_session')]
+    public function session(string $filename, string $date): Response
+    {
+        $user = $this->security->getUser();
+        if (!$user) {
+            return $this->json(['error' => 'User not authenticated'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        $userId = $user->getUserIdentifier();
+        $filepath = $this->chatlogService->getUserDir($userId) . '/' . $filename;
+
+        if (!file_exists($filepath)) {
+            throw $this->createNotFoundException('The chatlog file does not exist');
+        }
+
+        $analysis = $this->chatlogAnalyzer->analyze($filepath);
+        
+        $session = null;
+        foreach ($analysis['sessions'] as $s) {
+            if ($s['date'] === $date) {
+                $session = $s;
+                break;
+            }
+        }
+
+        if (!$session) {
+            throw $this->createNotFoundException('Session not found in this chatlog');
+        }
+
+        return $this->render('chatlog/session.html.twig', [
+            'filename' => $filename,
+            'date' => $date,
+            'session' => $session
+        ]);
+    }
 } 
