@@ -120,7 +120,7 @@
                                 <tbody>
                                     {% for charName, charData in analysis.totals.characters %}
                                         <tr>
-                                            <td>{{ charName }}</td>
+                                            <td><a href="{{ path('app_chatlog_character', {'filename': filename, 'character': charName}) }}">{{ charName }}</a></td>
                                             <td>{{ charData.rolls }}</td>
                                             <td>{{ charData.average }}</td>
                                             <td>
@@ -174,18 +174,18 @@
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {% for charName, charData in session.characters %}
+                                                {% for character, data in session.characters %}
                                                     <tr>
-                                                        <td>{{ charName }}</td>
-                                                        <td>{{ charData.rolls }}</td>
-                                                        <td>{{ charData.average }}</td>
+                                                        <td><a href="{{ path('app_chatlog_character', {'filename': filename, 'character': character}) }}">{{ character }}</a></td>
+                                                        <td>{{ data.rolls }}</td>
+                                                        <td>{{ data.average }}</td>
                                                         <td>
-                                                            {% for type, count in charData.roll_types %}
+                                                            {% for type, count in data.roll_types %}
                                                                 <span class="badge bg-primary me-1">{{ type }}: {{ count }}</span>
                                                             {% endfor %}
                                                         </td>
                                                         <td>
-                                                            {% for skill, count in charData.skills %}
+                                                            {% for skill, count in data.skills %}
                                                                 <span class="badge bg-info me-1">{{ skill }}: {{ count }}</span>
                                                             {% endfor %}
                                                         </td>

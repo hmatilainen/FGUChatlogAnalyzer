@@ -1,0 +1,93 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Character Analysis - {{ character }}{% endblock %}
+
+{% block body %}
+<div class="container mt-4">
+    <h1>Character Analysis: {{ character }}</h1>
+    
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Roll Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <tr>
+                            <th>Total Rolls</th>
+                            <td>{{ character_data.rolls }}</td>
+                        </tr>
+                        <tr>
+                            <th>Average Roll</th>
+                            <td>{{ character_data.average }}</td>
+                        </tr>
+                        <tr>
+                            <th>Total Value</th>
+                            <td>{{ character_data.total_value }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Roll Types</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Count</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for type, count in character_data.roll_types %}
+                                <tr>
+                                    <td>{{ type }}</td>
+                                    <td>{{ count }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Skills Used</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Skill</th>
+                                <th>Times Used</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for skill, count in character_data.skills %}
+                                <tr>
+                                    <td>{{ skill }}</td>
+                                    <td>{{ count }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <a href="{{ path('app_chatlog_analyze', {'filename': filename}) }}" class="btn btn-secondary">Back to Analysis</a>
+    </div>
+</div>
+{% endblock %} 
