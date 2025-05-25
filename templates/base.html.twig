@@ -81,6 +81,9 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link" href="{{ path('app_chatlog_sessions') }}">Session History</a>
+                        </li>
+                        <li class="nav-item">
                             <span class="nav-link">
                                 <i class="fas fa-user me-2"></i>User ID: {{ app.user.userIdentifier|slice(0, 8) }}...
                             </span>

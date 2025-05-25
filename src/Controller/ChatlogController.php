@@ -173,4 +173,71 @@ class ChatlogController extends AbstractController
             'session' => $session
         ]);
     }
+
+    #[Route('/chatlog/sessions', name: 'app_chatlog_sessions')]
+    public function sessions(): Response
+    {
+        $user = $this->security->getUser();
+        if (!$user) {
+            return $this->json(['error' => 'User not authenticated'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        $userId = $user->getUserIdentifier();
+        $chatlogs = $this->chatlogService->getUserChatlogs($userId);
+        
+        if (empty($chatlogs)) {
+            $this->addFlash('info', 'No chatlogs found. Please upload some chatlogs first.');
+            return $this->redirectToRoute('app_chatlog_upload');
+        }
+
+        $allSessions = [];
+        foreach ($chatlogs as $chatlog) {
+            if (!isset($chatlog['filename'])) {
+                continue;
+            }
+            
+            $filepath = $this->chatlogService->getUserDir($userId) . '/' . $chatlog['filename'];
+            if (!file_exists($filepath)) {
+                continue;
+            }
+
+            try {
+                $analysis = $this->chatlogAnalyzer->analyze($filepath);
+                if (!isset($analysis['sessions']) || !is_array($analysis['sessions'])) {
+                    continue;
+                }
+
+                foreach ($analysis['sessions'] as $session) {
+                    if (!isset($session['date']) || !isset($session['time'])) {
+                        continue;
+                    }
+
+                    $sessionData = array_merge($session, [
+                        'filename' => $chatlog['filename'],
+                        'modified' => $chatlog['modified'] ?? null
+                    ]);
+                    $allSessions[] = $sessionData;
+                }
+            } catch (\Exception $e) {
+                // Log the error but continue processing other files
+                continue;
+            }
+        }
+
+        if (empty($allSessions)) {
+            $this->addFlash('info', 'No sessions found in your chatlogs.');
+            return $this->redirectToRoute('app_chatlog_list');
+        }
+
+        // Sort sessions by date and time in reverse order
+        usort($allSessions, function($a, $b) {
+            $dateA = strtotime($a['date'] . ' ' . $a['time']);
+            $dateB = strtotime($b['date'] . ' ' . $b['time']);
+            return $dateB <=> $dateA;
+        });
+
+        return $this->render('chatlog/sessions.html.twig', [
+            'sessions' => $allSessions
+        ]);
+    }
 } 

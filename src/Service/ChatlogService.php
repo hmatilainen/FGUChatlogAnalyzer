@@ -56,9 +56,10 @@ class ChatlogService
 
         foreach ($files as $file) {
             $chatlogs[] = [
+                'filename' => $file,
                 'name' => $file,
                 'size' => filesize($userDir . '/' . $file),
-                'uploaded' => date('Y-m-d H:i:s', filemtime($userDir . '/' . $file))
+                'modified' => filemtime($userDir . '/' . $file)
             ];
         }
 
