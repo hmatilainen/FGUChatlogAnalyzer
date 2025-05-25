@@ -90,7 +90,12 @@ class ChatlogAnalyzer
                         'total_value' => 0,
                         'average' => 0,
                         'roll_types' => [],
-                        'skills' => []
+                        'skills' => [],
+                        'dice_stats' => [
+                            'dice_types' => [],
+                            'natural_ones' => 0,
+                            'natural_twenties' => 0
+                        ]
                     ];
                 }
 
@@ -111,6 +116,31 @@ class ChatlogAnalyzer
                     $characterTotals[$charName]['skills'][$skill] = 
                         ($characterTotals[$charName]['skills'][$skill] ?? 0) + $count;
                 }
+
+                // Merge dice statistics
+                foreach ($charData['dice_stats']['dice_types'] as $diceType => $diceData) {
+                    $diceKey = "d{$diceType}";
+                    if (!isset($characterTotals[$charName]['dice_stats']['dice_types'][$diceKey])) {
+                        $characterTotals[$charName]['dice_stats']['dice_types'][$diceKey] = [
+                            'total_rolls' => 0,
+                            'total_value' => 0,
+                            'average' => 0,
+                            'times_rolled' => 0
+                        ];
+                    }
+
+                    $diceStats = &$characterTotals[$charName]['dice_stats']['dice_types'][$diceKey];
+                    $diceStats['times_rolled'] += $diceData['times_rolled'];
+                    $diceStats['total_rolls'] += $diceData['total_rolls'];
+                    $diceStats['total_value'] += $diceData['total_value'];
+                    $diceStats['average'] = $diceStats['times_rolled'] > 0 
+                        ? round($diceStats['total_value'] / $diceStats['times_rolled'], 2)
+                        : 0;
+                }
+
+                // Track natural ones and twenties for d20
+                $characterTotals[$charName]['dice_stats']['natural_ones'] += $charData['dice_stats']['natural_ones'];
+                $characterTotals[$charName]['dice_stats']['natural_twenties'] += $charData['dice_stats']['natural_twenties'];
             }
         }
 
@@ -176,9 +206,13 @@ class ChatlogAnalyzer
             return;
         }
 
-        // Extract roll value - handle more complex roll formats
-        if (preg_match('/\[(?:r?\d+)?d\d+(?:\+\d+)?(?:\+d\d+)?(?:\+\d+)? = (\d+)\]/', $line, $matches)) {
-            $rollValue = (int)$matches[1];
+        // Extract roll value and dice information
+        if (preg_match('/\[(?:r?(\d+))?d(\d+)(?:\+(\d+))?(?:\+d\d+)?(?:\+\d+)? = (\d+)\]/', $line, $matches)) {
+            $numDice = (int)($matches[1] ?? 1);
+            $diceType = (int)$matches[2];
+            $bonus = (int)($matches[3] ?? 0);
+            $totalValue = (int)$matches[4];
+            $actualRoll = $totalValue - $bonus;
         } else {
             return;
         }
@@ -190,20 +224,53 @@ class ChatlogAnalyzer
                 'total_value' => 0,
                 'average' => 0,
                 'roll_types' => [],
-                'skills' => []
+                'skills' => [],
+                'dice_stats' => [
+                    'dice_types' => [],
+                    'natural_ones' => 0,
+                    'natural_twenties' => 0
+                ]
             ];
         }
 
         // Update session totals
         $this->currentSession['total_rolls']++;
-        $this->currentSession['total_value'] += $rollValue;
+        $this->currentSession['total_value'] += $totalValue;
 
         // Update character totals
         $this->currentSession['characters'][$character]['rolls']++;
-        $this->currentSession['characters'][$character]['total_value'] += $rollValue;
+        $this->currentSession['characters'][$character]['total_value'] += $totalValue;
         $this->currentSession['characters'][$character]['average'] = 
             round($this->currentSession['characters'][$character]['total_value'] / 
                   $this->currentSession['characters'][$character]['rolls'], 2);
+
+        // Update dice statistics
+        $diceKey = "d{$diceType}";
+        if (!isset($this->currentSession['characters'][$character]['dice_stats']['dice_types'][$diceKey])) {
+            $this->currentSession['characters'][$character]['dice_stats']['dice_types'][$diceKey] = [
+                'total_rolls' => 0,
+                'total_value' => 0,
+                'average' => 0,
+                'times_rolled' => 0
+            ];
+        }
+
+        $diceStats = &$this->currentSession['characters'][$character]['dice_stats']['dice_types'][$diceKey];
+        $diceStats['times_rolled'] += $numDice;
+        $diceStats['total_rolls']++;
+        $diceStats['total_value'] += $actualRoll;
+        $diceStats['average'] = $diceStats['times_rolled'] > 0 
+            ? round($diceStats['total_value'] / $diceStats['times_rolled'], 2)
+            : 0;
+
+        // Track natural ones and twenties for d20
+        if ($diceType === 20) {
+            if ($actualRoll === 1) {
+                $this->currentSession['characters'][$character]['dice_stats']['natural_ones']++;
+            } elseif ($actualRoll === 20) {
+                $this->currentSession['characters'][$character]['dice_stats']['natural_twenties']++;
+            }
+        }
 
         // Extract roll type and skill if present
         if (preg_match('/\[(ATTACK|DAMAGE|SKILL|SAVE|CHECK|TOWER|CAST)(?:\s+\([^)]+\))?(?:\s+([^]]+))?\]/', $line, $matches)) {
