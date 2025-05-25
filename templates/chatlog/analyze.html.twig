@@ -1,17 +1,20 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Analyze Chatlog - Fantasy Grounds Chatlog Analyzer{% endblock %}
+{% block title %}Analysis - {{ filename }} - Fantasy Grounds Chatlog Analyzer{% endblock %}
 
 {% block stylesheets %}
     {{ parent() }}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 {% endblock %}
 
 {% block javascripts %}
     {{ parent() }}
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
         $(document).ready(function() {
+            // Character search
             $("#characterSearch").on("keyup", function() {
                 var value = $(this).val().toLowerCase();
                 $("#characterTable tbody tr").filter(function() {
@@ -19,6 +22,31 @@
                     $(this).toggle(characterName.indexOf(value) > -1);
                 });
             });
+
+            // Session calendar filter
+            var sessionDates = [];
+            {% for session in analysis.sessions %}
+                sessionDates.push("{{ session.date }}");
+            {% endfor %}
+
+            $("#sessionCalendar").flatpickr({
+                inline: true,
+                dateFormat: "Y-m-d",
+                enable: sessionDates,
+                onChange: function(selectedDates, dateStr) {
+                    if (dateStr) {
+                        $(".session-block").hide();
+                        $(".session-block[data-date='" + dateStr + "']").show();
+                    } else {
+                        $(".session-block").show();
+                    }
+                }
+            });
+
+            // Add data-date attribute to session blocks
+            {% for session in analysis.sessions %}
+                $(".session-block").eq({{ loop.index0 }}).attr("data-date", "{{ session.date }}");
+            {% endfor %}
         });
     </script>
 {% endblock %}
@@ -29,33 +57,6 @@
         <div class="col">
             <h2>Chatlog Analysis</h2>
             <p class="text-muted">Analysis of {{ filename }}</p>
-        </div>
-    </div>
-
-    <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body text-center">
-                    <h5 class="card-title">Total Rolls</h5>
-                    <p class="display-4">{{ analysis.totals.rolls }}</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body text-center">
-                    <h5 class="card-title">Average Roll</h5>
-                    <p class="display-4">{{ analysis.totals.average }}</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body text-center">
-                    <h5 class="card-title">Characters</h5>
-                    <p class="display-4">{{ analysis.totals.characters|length }}</p>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -102,10 +103,23 @@
         </div>
     </div>
 
-    {% for session in analysis.sessions %}
-        <div class="row mb-4">
-            <div class="col">
-                <div class="card">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Filter by Date</h5>
+                </div>
+                <div class="card-body">
+                    <div id="sessionCalendar"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col">
+            {% for session in analysis.sessions %}
+                <div class="card mb-4 session-block">
                     <div class="card-header">
                         <h5 class="mb-0">
                             <i class="fas fa-calendar me-2"></i>Session: {{ session.date }} at {{ session.time }}
@@ -141,8 +155,11 @@
 
                         {% for character, data in session.characters %}
                             <div class="card mb-4">
-                                <div class="card-header">
+                                <div class="card-header d-flex justify-content-between align-items-center">
                                     <h6 class="mb-0"><i class="fas fa-user me-2"></i>{{ character }}</h6>
+                                    <a href="{{ path('app_chatlog_character', {'filename': filename, 'character': character}) }}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-user"></i> View Details
+                                    </a>
                                 </div>
                                 <div class="card-body">
                                     <div class="row mb-4">
@@ -264,20 +281,7 @@
                         {% endfor %}
                     </div>
                 </div>
-            </div>
-        </div>
-    {% endfor %}
-
-    <div class="row">
-        <div class="col">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Debug Information</h5>
-                </div>
-                <div class="card-body">
-                    <pre class="mb-0">{{ analysis.debug|join("\n") }}</pre>
-                </div>
-            </div>
+            {% endfor %}
         </div>
     </div>
 </div>
