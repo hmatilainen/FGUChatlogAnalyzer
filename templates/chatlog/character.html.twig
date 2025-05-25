@@ -44,12 +44,44 @@
         <div class="col-md-3">
             <div class="card">
                 <div class="card-body text-center">
-                    <h5 class="card-title">Roll Types</h5>
-                    <p class="display-4">{{ data.roll_types|length }}</p>
+                    <h5 class="card-title">Skills Used</h5>
+                    <p class="display-4">{{ data.skills|length }}</p>
                 </div>
             </div>
         </div>
     </div>
+
+    {% if data.skills|length > 0 %}
+        <div class="row mb-4">
+            <div class="col">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Skills Used</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Skill</th>
+                                        <th>Times Used</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for skill, count in data.skills %}
+                                        <tr>
+                                            <td>{{ skill }}</td>
+                                            <td>{{ count }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
 
     {% if data.roll_types|length > 0 %}
         <div class="row mb-4">
@@ -71,38 +103,6 @@
                                     {% for type, count in data.roll_types %}
                                         <tr>
                                             <td>{{ type }}</td>
-                                            <td>{{ count }}</td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    {% endif %}
-
-    {% if data.skills|length > 0 %}
-        <div class="row mb-4">
-            <div class="col">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">Skills</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th>Skill</th>
-                                        <th>Times Used</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for skill, count in data.skills %}
-                                        <tr>
-                                            <td>{{ skill }}</td>
                                             <td>{{ count }}</td>
                                         </tr>
                                     {% endfor %}
@@ -177,6 +177,7 @@
                                     <th>Rolls</th>
                                     <th>Average</th>
                                     <th>Total Value</th>
+                                    <th>Skills Used</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -188,6 +189,7 @@
                                             <td>{{ session.characters[character].rolls }}</td>
                                             <td>{{ session.characters[character].average }}</td>
                                             <td>{{ session.characters[character].total_value }}</td>
+                                            <td>{{ session.characters[character].skills|length }}</td>
                                         </tr>
                                     {% endif %}
                                 {% endfor %}

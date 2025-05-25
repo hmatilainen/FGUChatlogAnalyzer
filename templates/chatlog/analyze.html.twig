@@ -78,6 +78,7 @@
                                     <th>Total Rolls</th>
                                     <th>Average</th>
                                     <th>Total Value</th>
+                                    <th>Skills Used</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -88,6 +89,7 @@
                                         <td>{{ data.rolls }}</td>
                                         <td>{{ data.average }}</td>
                                         <td>{{ data.total_value }}</td>
+                                        <td>{{ data.skills|length }}</td>
                                         <td>
                                             <a href="{{ path('app_chatlog_character', {'filename': filename, 'character': character}) }}" class="btn btn-sm btn-primary">
                                                 <i class="fas fa-user"></i> View Details
@@ -190,8 +192,8 @@
                                         <div class="col-md-3">
                                             <div class="card bg-light">
                                                 <div class="card-body text-center">
-                                                    <h6 class="card-title">Roll Types</h6>
-                                                    <p class="h3">{{ data.roll_types|length }}</p>
+                                                    <h6 class="card-title">Skills Used</h6>
+                                                    <p class="h3">{{ data.skills|length }}</p>
                                                 </div>
                                             </div>
                                         </div>
