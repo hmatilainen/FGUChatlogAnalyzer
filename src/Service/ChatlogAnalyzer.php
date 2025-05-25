@@ -24,19 +24,48 @@ class ChatlogAnalyzer
             'debug' => &$this->debug
         ];
 
-        // Create a default session if none is found
-        $this->startNewSession(date('Y-m-d'), date('H:i'));
+        $foundFirstSession = false;
+        $foundRollsBeforeSession = false;
 
         foreach ($lines as $line) {
-            // Check for session start
-            if (preg_match('/Session started at (\d{4}-\d{2}-\d{2}) \/ (\d{2}:\d{2})/', $line, $matches)) {
-                $this->startNewSession($matches[1], $matches[2]);
-                $this->debug[] = "Found session start: {$matches[1]} at {$matches[2]}";
+            // Check for session start - handle both formats
+            if (preg_match('/Session started at (\d{4}-\d{2}-\d{2}) \/ (\d{2}:\d{2})/', $line, $matches) ||
+                preg_match('/Chat log started at (\d{1,2}\.\d{1,2}\.\d{4}) \/ (\d{2}:\d{2}:\d{2})/', $line, $matches)) {
+                
+                if (!$foundFirstSession) {
+                    $foundFirstSession = true;
+                    // If we found rolls before the first session, create a default session
+                    if ($foundRollsBeforeSession) {
+                        $this->startNewSession('Unknown', 'Unknown');
+                        $this->debug[] = "Created default session for rolls before first explicit session";
+                    }
+                }
+
+                // Convert date format if needed
+                $date = $matches[1];
+                $time = $matches[2];
+                
+                // Convert from DD.MM.YYYY to YYYY-MM-DD if needed
+                if (strpos($date, '.') !== false) {
+                    $dateParts = explode('.', $date);
+                    $date = sprintf('%04d-%02d-%02d', $dateParts[2], $dateParts[1], $dateParts[0]);
+                }
+
+                // Remove seconds from time if present
+                if (strlen($time) > 5) {
+                    $time = substr($time, 0, 5);
+                }
+
+                $this->startNewSession($date, $time);
+                $this->debug[] = "Found session start: {$date} at {$time}";
                 continue;
             }
 
             // Check for roll lines
             if (preg_match('/\[.*d.*\]/', $line)) {
+                if (!$foundFirstSession) {
+                    $foundRollsBeforeSession = true;
+                }
                 $this->debug[] = "Found roll line: " . trim($line);
                 $this->processRoll($line);
             }
