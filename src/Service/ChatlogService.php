@@ -1,0 +1,62 @@
+<?php
+
+namespace App\Service;
+
+use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\Filesystem\Filesystem;
+
+class ChatlogService
+{
+    private $uploadDir;
+    private $filesystem;
+
+    public function __construct(string $projectDir)
+    {
+        $this->uploadDir = $projectDir . '/var/uploads';
+        $this->filesystem = new Filesystem();
+    }
+
+    public function processUpload(UploadedFile $file, string $userId): array
+    {
+        try {
+            $userDir = $this->uploadDir . '/' . $userId;
+            if (!file_exists($userDir)) {
+                $this->filesystem->mkdir($userDir, 0777);
+            }
+
+            $filename = uniqid() . '_' . $file->getClientOriginalName();
+            $file->move($userDir, $filename);
+
+            return [
+                'success' => true,
+                'filename' => $filename
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'error' => 'Failed to process upload: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    public function getUserChatlogs(string $userId): array
+    {
+        $userDir = $this->uploadDir . '/' . $userId;
+        if (!file_exists($userDir)) {
+            return [];
+        }
+
+        $files = array_diff(scandir($userDir), ['.', '..']);
+        $chatlogs = [];
+
+        foreach ($files as $file) {
+            $chatlogs[] = [
+                'name' => $file,
+                'size' => filesize($userDir . '/' . $file),
+                'uploaded' => date('Y-m-d H:i:s', filemtime($userDir . '/' . $file))
+            ];
+        }
+
+        return $chatlogs;
+    }
+} 

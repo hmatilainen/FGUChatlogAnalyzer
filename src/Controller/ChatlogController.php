@@ -15,6 +15,8 @@ use Symfony\Component\Filesystem\Exception\IOException;
 use Symfony\Component\Validator\Constraints\NotBlank;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Bundle\SecurityBundle\Security;
+use App\Form\ChatlogUploadType;
+use App\Service\ChatlogService;
 
 #[Route('/chatlog')]
 class ChatlogController extends AbstractController
@@ -22,45 +24,39 @@ class ChatlogController extends AbstractController
     private string $uploadDir;
     private ChatlogAnalyzer $chatlogAnalyzer;
     private $security;
+    private $chatlogService;
 
-    public function __construct(ChatlogAnalyzer $chatlogAnalyzer, Security $security)
+    public function __construct(ChatlogAnalyzer $chatlogAnalyzer, Security $security, ChatlogService $chatlogService)
     {
         $this->uploadDir = dirname(__DIR__, 2) . '/public/uploads/chatlogs';
         $this->chatlogAnalyzer = $chatlogAnalyzer;
         $this->security = $security;
+        $this->chatlogService = $chatlogService;
     }
 
-    #[Route('/upload', name: 'app_chatlog_upload', methods: ['GET', 'POST'])]
+    #[Route('/upload', name: 'app_chatlog_upload')]
     public function upload(Request $request): Response
     {
-        $user = $this->security->getUser();
-        if (!$user) {
-            return $this->redirectToRoute('app_login');
+        $form = $this->createForm(ChatlogUploadType::class);
+        $form->handleRequest($request);
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            $file = $form->get('file')->getData();
+            $userId = $this->getUser()->getUserIdentifier();
+            
+            $result = $this->chatlogService->processUpload($file, $userId);
+            
+            if ($result['success']) {
+                $this->addFlash('success', 'Chatlog uploaded and processed successfully!');
+                return $this->redirectToRoute('app_chatlog_list');
+            } else {
+                $this->addFlash('error', $result['error']);
+            }
         }
 
-        if ($request->isMethod('GET')) {
-            return $this->render('chatlog/upload.html.twig');
-        }
-
-        $file = $request->files->get('chatlog');
-        if (!$file instanceof UploadedFile) {
-            return $this->json(['error' => 'No file uploaded'], Response::HTTP_BAD_REQUEST);
-        }
-
-        if ($file->getClientMimeType() !== 'text/plain') {
-            return $this->json(['error' => 'Only text files are allowed'], Response::HTTP_BAD_REQUEST);
-        }
-
-        $username = $user->getUserIdentifier();
-        $uploadDir = $this->getParameter('kernel.project_dir') . '/var/uploads/' . $username;
-        if (!file_exists($uploadDir)) {
-            mkdir($uploadDir, 0777, true);
-        }
-
-        $filename = uniqid() . '.txt';
-        $file->move($uploadDir, $filename);
-
-        return $this->json(['success' => true, 'filename' => $filename]);
+        return $this->render('chatlog/upload.html.twig', [
+            'form' => $form->createView()
+        ]);
     }
 
     #[Route('/analyze/{filename}', name: 'app_chatlog_analyze', methods: ['GET'])]
@@ -82,30 +78,15 @@ class ChatlogController extends AbstractController
         return $this->json($analysis);
     }
 
-    #[Route('/list', name: 'app_chatlog_list', methods: ['GET'])]
+    #[Route('/list', name: 'app_chatlog_list')]
     public function list(): Response
     {
-        $user = $this->security->getUser();
-        if (!$user) {
-            return $this->json(['error' => 'User not authenticated'], Response::HTTP_UNAUTHORIZED);
-        }
+        $userId = $this->getUser()->getUserIdentifier();
+        $chatlogs = $this->chatlogService->getUserChatlogs($userId);
 
-        $username = $user->getUserIdentifier();
-        $uploadDir = $this->getParameter('kernel.project_dir') . '/var/uploads/' . $username;
-
-        if (!file_exists($uploadDir)) {
-            return $this->json(['files' => []]);
-        }
-
-        $files = array_map(function($file) use ($username) {
-            return [
-                'name' => $file,
-                'size' => filesize($this->getParameter('kernel.project_dir') . '/var/uploads/' . $username . '/' . $file),
-                'uploaded' => date('Y-m-d H:i:s', filemtime($this->getParameter('kernel.project_dir') . '/var/uploads/' . $username . '/' . $file))
-            ];
-        }, array_diff(scandir($uploadDir), ['.', '..']));
-
-        return $this->json(['files' => $files]);
+        return $this->render('chatlog/list.html.twig', [
+            'chatlogs' => $chatlogs
+        ]);
     }
 
     #[Route('/delete/{filename}', name: 'app_chatlog_delete', methods: ['DELETE'])]
