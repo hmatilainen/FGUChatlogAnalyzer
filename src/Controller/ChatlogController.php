@@ -13,129 +13,122 @@ use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\Filesystem\Exception\IOException;
 use Symfony\Component\Validator\Constraints\NotBlank;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Bundle\SecurityBundle\Security;
 
+#[Route('/chatlog')]
 class ChatlogController extends AbstractController
 {
     private string $uploadDir;
     private ChatlogAnalyzer $chatlogAnalyzer;
+    private $security;
 
-    public function __construct(ChatlogAnalyzer $chatlogAnalyzer)
+    public function __construct(ChatlogAnalyzer $chatlogAnalyzer, Security $security)
     {
         $this->uploadDir = dirname(__DIR__, 2) . '/public/uploads/chatlogs';
         $this->chatlogAnalyzer = $chatlogAnalyzer;
+        $this->security = $security;
     }
 
-    #[Route('/upload', name: 'app_upload')]
+    #[Route('/upload', name: 'app_chatlog_upload', methods: ['GET', 'POST'])]
     public function upload(Request $request): Response
     {
-        $form = $this->createFormBuilder()
-            ->add('chatlog', ChatlogFileType::class, [
-                'label' => 'Fantasy Grounds Chatlog File',
-                'constraints' => [
-                    new NotBlank([
-                        'message' => 'Please select a file to upload'
-                    ]),
-                    new ChatlogFile()
-                ],
-            ])
-            ->getForm();
-
-        $form->handleRequest($request);
-
-        if ($form->isSubmitted()) {
-            if (!$form->isValid()) {
-                $file = $form->get('chatlog')->getData();
-                if ($file) {
-                    $errors = $form->get('chatlog')->getErrors();
-                    $errorMessages = [];
-                    foreach ($errors as $error) {
-                        $errorMessages[] = $error->getMessage();
-                    }
-                    
-                    $this->addFlash('error', sprintf(
-                        'Debug info: Original name: %s, Mime type: %s, Extension: %s, Errors: %s',
-                        $file->getClientOriginalName(),
-                        $file->getMimeType(),
-                        pathinfo($file->getClientOriginalName(), PATHINFO_EXTENSION),
-                        implode(', ', $errorMessages)
-                    ));
-                }
-            }
-
-            if ($form->isValid()) {
-                $file = $form->get('chatlog')->getData();
-                
-                // Create upload directory if it doesn't exist
-                $filesystem = new Filesystem();
-                try {
-                    if (!$filesystem->exists($this->uploadDir)) {
-                        $filesystem->mkdir($this->uploadDir, 0775);
-                    }
-                } catch (IOException $e) {
-                    $this->addFlash('error', 'Unable to create upload directory. Please contact the administrator.');
-                    return $this->redirectToRoute('app_upload');
-                }
-
-                // Check if directory is writable
-                if (!is_writable($this->uploadDir)) {
-                    $this->addFlash('error', 'Upload directory is not writable. Please contact the administrator.');
-                    return $this->redirectToRoute('app_upload');
-                }
-
-                // Generate unique filename with timestamp
-                $timestamp = date('Y-m-d_H-i-s');
-                $originalName = $file->getClientOriginalName();
-                $extension = pathinfo($originalName, PATHINFO_EXTENSION);
-                $newFilename = $timestamp . '_' . uniqid() . '.' . $extension;
-
-                try {
-                    // Move the file to upload directory
-                    $file->move($this->uploadDir, $newFilename);
-                    $this->addFlash('success', 'File uploaded successfully!');
-                    return $this->redirectToRoute('app_chatlog_list');
-                } catch (\Exception $e) {
-                    $this->addFlash('error', 'Failed to save the uploaded file. Please try again or contact the administrator.');
-                    return $this->redirectToRoute('app_upload');
-                }
-            }
+        $user = $this->security->getUser();
+        if (!$user) {
+            return $this->redirectToRoute('app_login');
         }
 
-        return $this->render('chatlog/upload.html.twig', [
-            'form' => $form->createView(),
-        ]);
+        if ($request->isMethod('GET')) {
+            return $this->render('chatlog/upload.html.twig');
+        }
+
+        $file = $request->files->get('chatlog');
+        if (!$file instanceof UploadedFile) {
+            return $this->json(['error' => 'No file uploaded'], Response::HTTP_BAD_REQUEST);
+        }
+
+        if ($file->getClientMimeType() !== 'text/plain') {
+            return $this->json(['error' => 'Only text files are allowed'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $username = $user->getUserIdentifier();
+        $uploadDir = $this->getParameter('kernel.project_dir') . '/var/uploads/' . $username;
+        if (!file_exists($uploadDir)) {
+            mkdir($uploadDir, 0777, true);
+        }
+
+        $filename = uniqid() . '.txt';
+        $file->move($uploadDir, $filename);
+
+        return $this->json(['success' => true, 'filename' => $filename]);
     }
 
-    #[Route('/chatlogs', name: 'app_chatlog_list')]
+    #[Route('/analyze/{filename}', name: 'app_chatlog_analyze', methods: ['GET'])]
+    public function analyze(string $filename): Response
+    {
+        $user = $this->security->getUser();
+        if (!$user) {
+            return $this->json(['error' => 'User not authenticated'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        $username = $user->getUserIdentifier();
+        $filepath = $this->getParameter('kernel.project_dir') . '/var/uploads/' . $username . '/' . $filename;
+
+        if (!file_exists($filepath)) {
+            return $this->json(['error' => 'File not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        $analysis = $this->chatlogAnalyzer->analyze($filepath);
+        return $this->json($analysis);
+    }
+
+    #[Route('/list', name: 'app_chatlog_list', methods: ['GET'])]
     public function list(): Response
     {
-        $filesystem = new Filesystem();
-        if (!$filesystem->exists($this->uploadDir)) {
-            return $this->render('chatlog/list.html.twig', [
-                'files' => []
-            ]);
+        $user = $this->security->getUser();
+        if (!$user) {
+            return $this->json(['error' => 'User not authenticated'], Response::HTTP_UNAUTHORIZED);
         }
 
-        $finder = new Finder();
-        $finder->files()
-            ->in($this->uploadDir)
-            ->sortByModifiedTime();
+        $username = $user->getUserIdentifier();
+        $uploadDir = $this->getParameter('kernel.project_dir') . '/var/uploads/' . $username;
 
-        $files = [];
-        foreach ($finder as $file) {
-            $files[] = [
-                'name' => $file->getFilename(),
-                'modified' => $file->getMTime(),
-                'size' => $file->getSize(),
+        if (!file_exists($uploadDir)) {
+            return $this->json(['files' => []]);
+        }
+
+        $files = array_map(function($file) use ($username) {
+            return [
+                'name' => $file,
+                'size' => filesize($this->getParameter('kernel.project_dir') . '/var/uploads/' . $username . '/' . $file),
+                'uploaded' => date('Y-m-d H:i:s', filemtime($this->getParameter('kernel.project_dir') . '/var/uploads/' . $username . '/' . $file))
             ];
+        }, array_diff(scandir($uploadDir), ['.', '..']));
+
+        return $this->json(['files' => $files]);
+    }
+
+    #[Route('/delete/{filename}', name: 'app_chatlog_delete', methods: ['DELETE'])]
+    public function delete(string $filename): Response
+    {
+        $user = $this->security->getUser();
+        if (!$user) {
+            return $this->json(['error' => 'User not authenticated'], Response::HTTP_UNAUTHORIZED);
         }
 
-        return $this->render('chatlog/list.html.twig', [
-            'files' => $files
-        ]);
+        $username = $user->getUserIdentifier();
+        $filepath = $this->getParameter('kernel.project_dir') . '/var/uploads/' . $username . '/' . $filename;
+
+        if (!file_exists($filepath)) {
+            return $this->json(['error' => 'File not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        unlink($filepath);
+        return $this->json(['success' => true]);
     }
 
     #[Route('/chatlog/{filename}', name: 'app_chatlog_analyze')]
-    public function analyze(string $filename): Response
+    public function analyzeOld(string $filename): Response
     {
         $filePath = $this->uploadDir . '/' . $filename;
 

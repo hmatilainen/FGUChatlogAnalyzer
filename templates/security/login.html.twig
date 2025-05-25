@@ -1,0 +1,54 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Login - Fantasy Grounds Chatlog Analyzer{% endblock %}
+
+{% block body %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="fas fa-info-circle me-2"></i>About This Tool</h4>
+                </div>
+                <div class="card-body">
+                    <p>Welcome to the Fantasy Grounds Chatlog Analyzer! This tool helps you analyze your Fantasy Grounds chat logs to gain insights into your gaming sessions.</p>
+                    <p>With this tool, you can:</p>
+                    <ul>
+                        <li>Upload your Fantasy Grounds chat logs</li>
+                        <li>View detailed statistics about dice rolls</li>
+                        <li>Analyze character interactions and actions</li>
+                        <li>Track session progress and events</li>
+                    </ul>
+                    <p>To get started, simply enter a username below. Your files will be stored securely and will be automatically deleted when you log out.</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="fas fa-sign-in-alt me-2"></i>Login</h4>
+                </div>
+                <div class="card-body">
+                    {% if error %}
+                        <div class="alert alert-danger">
+                            {{ error.messageKey|trans(error.messageData, 'security') }}
+                        </div>
+                    {% endif %}
+
+                    <form method="post">
+                        {{ form_start(form) }}
+                        <div class="mb-3">
+                            {{ form_row(form.username) }}
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-sign-in-alt me-2"></i>Start Analyzing
+                            </button>
+                        </div>
+                        {{ form_end(form) }}
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -67,18 +67,36 @@
                             <i class="fas fa-home me-1"></i>Home
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if app.request.get('_route') == 'app_upload' %}active{% endif %}" 
-                           href="{{ path('app_upload') }}">
-                            <i class="fas fa-upload me-1"></i>Upload
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if app.request.get('_route') == 'app_chatlog_list' %}active{% endif %}" 
-                           href="{{ path('app_chatlog_list') }}">
-                            <i class="fas fa-list me-1"></i>Chatlogs
-                        </a>
-                    </li>
+                    {% if app.user %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if app.request.get('_route') == 'app_chatlog_upload' %}active{% endif %}" 
+                               href="{{ path('app_chatlog_upload') }}">
+                                <i class="fas fa-upload me-1"></i>Upload
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if app.request.get('_route') == 'app_chatlog_list' %}active{% endif %}" 
+                               href="{{ path('app_chatlog_list') }}">
+                                <i class="fas fa-list me-1"></i>Chatlogs
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <span class="nav-link">
+                                <i class="fas fa-user me-2"></i>{{ app.user.username }}
+                            </span>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ path('app_logout_confirm') }}">
+                                <i class="fas fa-sign-out-alt me-2"></i>Logout
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ path('app_login') }}">
+                                <i class="fas fa-sign-in-alt me-2"></i>Login
+                            </a>
+                        </li>
+                    {% endif %}
                 </ul>
             </div>
         </div>
