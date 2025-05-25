@@ -31,3 +31,7 @@ services:
     App\Service\FileCleanupService:
         arguments:
             $projectDir: '%projectDir%'
+
+    # Session service
+    Symfony\Component\HttpFoundation\Session\SessionInterface:
+        factory: ['@session.factory', 'createSession']

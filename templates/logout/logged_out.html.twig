@@ -1,0 +1,40 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Logged Out - Fantasy Grounds Chatlog Analyzer{% endblock %}
+
+{% block body %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="fas fa-check-circle me-2"></i>Successfully Logged Out</h4>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
+                        <h5>You have been successfully logged out</h5>
+                        <p class="text-muted">Your session has ended and all uploaded files have been permanently deleted.</p>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <h5><i class="fas fa-info-circle me-2"></i>About Sessions</h5>
+                        <p>Each time you visit the home page, a new session is created. This means:</p>
+                        <ul class="mb-0">
+                            <li>You can upload new chatlog files in your new session</li>
+                            <li>Each session is independent and files are not shared between sessions</li>
+                            <li>Your files are automatically deleted when you logout</li>
+                        </ul>
+                    </div>
+
+                    <div class="text-center mt-4">
+                        <a href="{{ path('app_home') }}" class="btn btn-primary btn-lg">
+                            <i class="fas fa-play me-2"></i>Start a New Session
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
