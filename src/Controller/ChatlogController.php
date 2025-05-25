@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Form\ChatlogFileType;
+use App\Service\ChatlogAnalyzer;
 use App\Validator\Constraints\ChatlogFile;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -135,14 +136,19 @@ class ChatlogController extends AbstractController
     public function analyze(string $filename): Response
     {
         $filePath = $this->uploadDir . '/' . $filename;
-        
+
         if (!file_exists($filePath)) {
             throw $this->createNotFoundException('The chatlog file does not exist');
         }
 
+        $content = file_get_contents($filePath);
+        $analyzer = new ChatlogAnalyzer();
+        $analysis = $analyzer->analyze($content);
+
         return $this->render('chatlog/analyze.html.twig', [
             'filename' => $filename,
-            'modified' => filemtime($filePath)
+            'modified' => filemtime($filePath),
+            'analysis' => $analysis
         ]);
     }
 } 
