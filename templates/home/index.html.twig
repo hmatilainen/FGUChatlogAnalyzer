@@ -29,10 +29,10 @@
                     <div class="card h-100">
                         <div class="card-body text-center">
                             <i class="fas fa-chart-bar fa-3x text-primary mb-3"></i>
-                            <h5 class="card-title">Analyze Statistics</h5>
-                            <p class="card-text">Get detailed statistics about dice rolls, combat actions, and more.</p>
-                            <a href="{{ path('app_upload') }}" class="btn btn-primary">
-                                <i class="fas fa-chart-bar me-2"></i>View Stats
+                            <h5 class="card-title">View Statistics</h5>
+                            <p class="card-text">Browse and analyze your previously uploaded chatlogs.</p>
+                            <a href="{{ path('app_chatlog_list') }}" class="btn btn-primary">
+                                <i class="fas fa-list me-2"></i>View Chatlogs
                             </a>
                         </div>
                     </div>
@@ -44,7 +44,7 @@
                             <i class="fas fa-history fa-3x text-primary mb-3"></i>
                             <h5 class="card-title">Session History</h5>
                             <p class="card-text">Track your game sessions and compare statistics over time.</p>
-                            <a href="{{ path('app_upload') }}" class="btn btn-primary">
+                            <a href="{{ path('app_chatlog_list') }}" class="btn btn-primary">
                                 <i class="fas fa-history me-2"></i>View History
                             </a>
                         </div>
