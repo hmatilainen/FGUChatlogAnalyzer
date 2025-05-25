@@ -16,10 +16,15 @@ class ChatlogService
         $this->filesystem = new Filesystem();
     }
 
+    public function getUserDir(string $userId): string
+    {
+        return $this->uploadDir . '/' . $userId;
+    }
+
     public function processUpload(UploadedFile $file, string $userId): array
     {
         try {
-            $userDir = $this->uploadDir . '/' . $userId;
+            $userDir = $this->getUserDir($userId);
             if (!file_exists($userDir)) {
                 $this->filesystem->mkdir($userDir, 0777);
             }
@@ -41,7 +46,7 @@ class ChatlogService
 
     public function getUserChatlogs(string $userId): array
     {
-        $userDir = $this->uploadDir . '/' . $userId;
+        $userDir = $this->getUserDir($userId);
         if (!file_exists($userDir)) {
             return [];
         }

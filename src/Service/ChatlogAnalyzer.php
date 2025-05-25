@@ -8,8 +8,13 @@ class ChatlogAnalyzer
     private ?array $currentSession = null;
     private array $debug = [];
 
-    public function analyze(string $content): array
+    public function analyze(string $filepath): array
     {
+        $content = file_get_contents($filepath);
+        if (!$content) {
+            throw new \RuntimeException('Could not read file contents');
+        }
+
         $this->debug = [];
         $this->debug[] = "Starting analysis...";
         

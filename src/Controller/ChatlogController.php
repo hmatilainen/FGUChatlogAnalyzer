@@ -18,23 +18,20 @@ use Symfony\Bundle\SecurityBundle\Security;
 use App\Form\ChatlogUploadType;
 use App\Service\ChatlogService;
 
-#[Route('/chatlog')]
 class ChatlogController extends AbstractController
 {
-    private string $uploadDir;
     private ChatlogAnalyzer $chatlogAnalyzer;
-    private $security;
-    private $chatlogService;
+    private Security $security;
+    private ChatlogService $chatlogService;
 
     public function __construct(ChatlogAnalyzer $chatlogAnalyzer, Security $security, ChatlogService $chatlogService)
     {
-        $this->uploadDir = dirname(__DIR__, 2) . '/public/uploads/chatlogs';
         $this->chatlogAnalyzer = $chatlogAnalyzer;
         $this->security = $security;
         $this->chatlogService = $chatlogService;
     }
 
-    #[Route('/upload', name: 'app_chatlog_upload')]
+    #[Route('/chatlog/upload', name: 'app_chatlog_upload')]
     public function upload(Request $request): Response
     {
         $form = $this->createForm(ChatlogUploadType::class);
@@ -59,7 +56,7 @@ class ChatlogController extends AbstractController
         ]);
     }
 
-    #[Route('/analyze/{filename}', name: 'app_chatlog_analyze', methods: ['GET'])]
+    #[Route('/chatlog/analyze/{filename}', name: 'app_chatlog_analyze', methods: ['GET'])]
     public function analyze(string $filename): Response
     {
         $user = $this->security->getUser();
@@ -67,18 +64,22 @@ class ChatlogController extends AbstractController
             return $this->json(['error' => 'User not authenticated'], Response::HTTP_UNAUTHORIZED);
         }
 
-        $username = $user->getUserIdentifier();
-        $filepath = $this->getParameter('kernel.project_dir') . '/var/uploads/' . $username . '/' . $filename;
+        $userId = $user->getUserIdentifier();
+        $filepath = $this->chatlogService->getUserDir($userId) . '/' . $filename;
 
         if (!file_exists($filepath)) {
-            return $this->json(['error' => 'File not found'], Response::HTTP_NOT_FOUND);
+            throw $this->createNotFoundException('The chatlog file does not exist');
         }
 
         $analysis = $this->chatlogAnalyzer->analyze($filepath);
-        return $this->json($analysis);
+        return $this->render('chatlog/analyze.html.twig', [
+            'filename' => $filename,
+            'modified' => filemtime($filepath),
+            'analysis' => $analysis
+        ]);
     }
 
-    #[Route('/list', name: 'app_chatlog_list')]
+    #[Route('/chatlog/list', name: 'app_chatlog_list')]
     public function list(): Response
     {
         $userId = $this->getUser()->getUserIdentifier();
@@ -89,7 +90,7 @@ class ChatlogController extends AbstractController
         ]);
     }
 
-    #[Route('/delete/{filename}', name: 'app_chatlog_delete', methods: ['DELETE'])]
+    #[Route('/chatlog/delete/{filename}', name: 'app_chatlog_delete', methods: ['DELETE'])]
     public function delete(string $filename): Response
     {
         $user = $this->security->getUser();
@@ -97,8 +98,8 @@ class ChatlogController extends AbstractController
             return $this->json(['error' => 'User not authenticated'], Response::HTTP_UNAUTHORIZED);
         }
 
-        $username = $user->getUserIdentifier();
-        $filepath = $this->getParameter('kernel.project_dir') . '/var/uploads/' . $username . '/' . $filename;
+        $userId = $user->getUserIdentifier();
+        $filepath = $this->chatlogService->getUserDir($userId) . '/' . $filename;
 
         if (!file_exists($filepath)) {
             return $this->json(['error' => 'File not found'], Response::HTTP_NOT_FOUND);
@@ -106,26 +107,6 @@ class ChatlogController extends AbstractController
 
         unlink($filepath);
         return $this->json(['success' => true]);
-    }
-
-    #[Route('/chatlog/{filename}', name: 'app_chatlog_analyze')]
-    public function analyzeOld(string $filename): Response
-    {
-        $filePath = $this->uploadDir . '/' . $filename;
-
-        if (!file_exists($filePath)) {
-            throw $this->createNotFoundException('The chatlog file does not exist');
-        }
-
-        $content = file_get_contents($filePath);
-        $analyzer = new ChatlogAnalyzer();
-        $analysis = $analyzer->analyze($content);
-
-        return $this->render('chatlog/analyze.html.twig', [
-            'filename' => $filename,
-            'modified' => filemtime($filePath),
-            'analysis' => $analysis
-        ]);
     }
 
     #[Route('/chatlog/{filename}/character/{character}', name: 'app_chatlog_character')]
