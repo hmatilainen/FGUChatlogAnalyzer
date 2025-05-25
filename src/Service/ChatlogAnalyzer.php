@@ -77,18 +77,51 @@ class ChatlogAnalyzer
         // Calculate totals
         $totalRolls = 0;
         $totalValue = 0;
+        $characterTotals = [];
+
         foreach ($this->sessions as $session) {
             $totalRolls += $session['total_rolls'];
-            foreach ($session['characters'] as $charData) {
+            
+            foreach ($session['characters'] as $charName => $charData) {
+                // Initialize character totals if not exists
+                if (!isset($characterTotals[$charName])) {
+                    $characterTotals[$charName] = [
+                        'rolls' => 0,
+                        'total_value' => 0,
+                        'average' => 0,
+                        'roll_types' => [],
+                        'skills' => []
+                    ];
+                }
+
+                // Update character totals
+                $characterTotals[$charName]['rolls'] += $charData['rolls'];
+                $characterTotals[$charName]['total_value'] += $charData['total_value'];
+                $characterTotals[$charName]['average'] = 
+                    round($characterTotals[$charName]['total_value'] / $characterTotals[$charName]['rolls'], 2);
+
+                // Merge roll types
+                foreach ($charData['roll_types'] as $type => $count) {
+                    $characterTotals[$charName]['roll_types'][$type] = 
+                        ($characterTotals[$charName]['roll_types'][$type] ?? 0) + $count;
+                }
+
+                // Merge skills
+                foreach ($charData['skills'] as $skill => $count) {
+                    $characterTotals[$charName]['skills'][$skill] = 
+                        ($characterTotals[$charName]['skills'][$skill] ?? 0) + $count;
+                }
+
                 $totalValue += $charData['total_value'];
             }
         }
 
         $analysis['totals']['rolls'] = $totalRolls;
         $analysis['totals']['average'] = $totalRolls > 0 ? round($totalValue / $totalRolls, 2) : 0;
+        $analysis['totals']['characters'] = $characterTotals;
         $analysis['sessions'] = $this->sessions;
 
-        $this->debug[] = "Analysis complete. Total rolls: {$totalRolls}, Average: {$analysis['totals']['average']}";
+        $this->debug[] = "Analysis complete. Total rolls: {$totalRolls}, Average: {$analysis['totals']['average']}, Characters: " . count($characterTotals);
         
         return $analysis;
     }
