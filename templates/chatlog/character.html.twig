@@ -72,15 +72,16 @@
                                 <thead>
                                     <tr>
                                         <th>Dice</th>
-                                        <th>Times Rolled</th>
-                                        <th>Total Rolls</th>
+                                        <th>Individual Dice Rolled</th>
+                                        <th>Number of Rolls</th>
                                         <th>Average</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for dice, stats in character_data.dice_stats.dice_types %}
+                                    {% set sorted_dice = character_data.dice_stats.dice_types|sort((a, b) => a.dice_type <=> b.dice_type) %}
+                                    {% for dice, stats in sorted_dice %}
                                         <tr>
-                                            <td>{{ dice }}</td>
+                                            <td>d{{ stats.dice_type }}</td>
                                             <td>{{ stats.times_rolled }}</td>
                                             <td>{{ stats.total_rolls }}</td>
                                             <td>{{ stats.average }}</td>

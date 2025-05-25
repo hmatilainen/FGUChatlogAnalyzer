@@ -125,7 +125,8 @@ class ChatlogAnalyzer
                             'total_rolls' => 0,
                             'total_value' => 0,
                             'average' => 0,
-                            'times_rolled' => 0
+                            'times_rolled' => 0,
+                            'dice_type' => $diceType
                         ];
                     }
 
@@ -251,7 +252,8 @@ class ChatlogAnalyzer
                 'total_rolls' => 0,
                 'total_value' => 0,
                 'average' => 0,
-                'times_rolled' => 0
+                'times_rolled' => 0,
+                'dice_type' => $diceType
             ];
         }
 
