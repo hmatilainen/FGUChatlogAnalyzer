@@ -1,0 +1,72 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Welcome - Fantasy Grounds Chatlog Analyzer{% endblock %}
+
+{% block body %}
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="text-center mb-5">
+                <i class="fas fa-dice-d20 fa-5x text-primary mb-4"></i>
+                <h1 class="display-4 mb-3">Welcome to Fantasy Grounds Chatlog Analyzer</h1>
+                <p class="lead text-muted">Analyze your Fantasy Grounds chat logs to extract valuable insights about your game sessions.</p>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-upload fa-3x text-primary mb-3"></i>
+                            <h5 class="card-title">Upload Chatlog</h5>
+                            <p class="card-text">Upload your Fantasy Grounds chatlog.html file to begin analysis.</p>
+                            <a href="{{ path('app_upload') }}" class="btn btn-primary">
+                                <i class="fas fa-upload me-2"></i>Upload Now
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-chart-bar fa-3x text-primary mb-3"></i>
+                            <h5 class="card-title">Analyze Statistics</h5>
+                            <p class="card-text">Get detailed statistics about dice rolls, combat actions, and more.</p>
+                            <a href="{{ path('app_upload') }}" class="btn btn-primary">
+                                <i class="fas fa-chart-bar me-2"></i>View Stats
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-history fa-3x text-primary mb-3"></i>
+                            <h5 class="card-title">Session History</h5>
+                            <p class="card-text">Track your game sessions and compare statistics over time.</p>
+                            <a href="{{ path('app_upload') }}" class="btn btn-primary">
+                                <i class="fas fa-history me-2"></i>View History
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-5">
+                <div class="card-header">
+                    <h4 class="mb-0"><i class="fas fa-info-circle me-2"></i>About This Tool</h4>
+                </div>
+                <div class="card-body">
+                    <p>The Fantasy Grounds Chatlog Analyzer helps you extract valuable insights from your game sessions by analyzing the chat logs. Here's what you can do:</p>
+                    <ul class="mb-0">
+                        <li>Upload and analyze Fantasy Grounds chatlog.html files</li>
+                        <li>Extract dice roll statistics and probabilities</li>
+                        <li>Track combat actions and their outcomes</li>
+                        <li>Monitor player participation and engagement</li>
+                        <li>Generate session reports and summaries</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %} 
