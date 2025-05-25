@@ -1,144 +1,202 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Character Analysis - {{ character }}{% endblock %}
+{% block title %}Character Analysis - {{ character }} - Fantasy Grounds Chatlog Analyzer{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+{% endblock %}
 
 {% block body %}
-<div class="container mt-4">
-    <h1>Character Analysis: {{ character }}</h1>
-    
-    <div class="row mt-4">
-        <div class="col-md-6">
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>Character Analysis</h2>
+            <p class="text-muted">{{ character }} in {{ filename }}</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-3">
             <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">Roll Statistics</h5>
-                </div>
-                <div class="card-body">
-                    <table class="table">
-                        <tr>
-                            <th>Total Rolls</th>
-                            <td>{{ character_data.rolls }}</td>
-                        </tr>
-                        <tr>
-                            <th>Average Roll</th>
-                            <td>{{ character_data.average }}</td>
-                        </tr>
-                        <tr>
-                            <th>Total Value</th>
-                            <td>{{ character_data.total_value }}</td>
-                        </tr>
-                    </table>
+                <div class="card-body text-center">
+                    <h5 class="card-title">Total Rolls</h5>
+                    <p class="display-4">{{ data.rolls }}</p>
                 </div>
             </div>
         </div>
-        
-        <div class="col-md-6">
+        <div class="col-md-3">
             <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">Roll Types</h5>
+                <div class="card-body text-center">
+                    <h5 class="card-title">Average</h5>
+                    <p class="display-4">{{ data.average }}</p>
                 </div>
-                <div class="card-body">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Type</th>
-                                <th>Count</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for type, count in character_data.roll_types %}
-                                <tr>
-                                    <td>{{ type }}</td>
-                                    <td>{{ count }}</td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Total Value</h5>
+                    <p class="display-4">{{ data.total_value }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Roll Types</h5>
+                    <p class="display-4">{{ data.roll_types|length }}</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">Dice Statistics</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6>Dice Types</h6>
+    {% if data.roll_types|length > 0 %}
+        <div class="row mb-4">
+            <div class="col">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Roll Types</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
                             <table class="table">
                                 <thead>
                                     <tr>
-                                        <th>Dice</th>
-                                        <th>Individual Dice Rolled</th>
-                                        <th>Number of Rolls</th>
-                                        <th>Average</th>
+                                        <th>Type</th>
+                                        <th>Count</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% set sorted_dice = character_data.dice_stats.dice_types|sort((a, b) => a.dice_type <=> b.dice_type) %}
-                                    {% for dice, stats in sorted_dice %}
+                                    {% for type, count in data.roll_types %}
                                         <tr>
-                                            <td>d{{ stats.dice_type }}</td>
-                                            <td>{{ stats.times_rolled }}</td>
-                                            <td>{{ stats.total_rolls }}</td>
-                                            <td>{{ stats.average }}</td>
+                                            <td>{{ type }}</td>
+                                            <td>{{ count }}</td>
                                         </tr>
                                     {% endfor %}
                                 </tbody>
-                            </table>
-                        </div>
-                        <div class="col-md-6">
-                            <h6>d20 Special Rolls</h6>
-                            <table class="table">
-                                <tr>
-                                    <th>Natural 1s</th>
-                                    <td>{{ character_data.dice_stats.natural_ones }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Natural 20s</th>
-                                    <td>{{ character_data.dice_stats.natural_twenties }}</td>
-                                </tr>
                             </table>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+    {% endif %}
 
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">Skills Used</h5>
-                </div>
-                <div class="card-body">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Skill</th>
-                                <th>Times Used</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for skill, count in character_data.skills %}
-                                <tr>
-                                    <td>{{ skill }}</td>
-                                    <td>{{ count }}</td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+    {% if data.skills|length > 0 %}
+        <div class="row mb-4">
+            <div class="col">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Skills</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Skill</th>
+                                        <th>Times Used</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for skill, count in data.skills %}
+                                        <tr>
+                                            <td>{{ skill }}</td>
+                                            <td>{{ count }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+    {% endif %}
 
-    <div class="mt-4">
-        <a href="{{ path('app_chatlog_analyze', {'filename': filename}) }}" class="btn btn-secondary">Back to Analysis</a>
+    {% if data.dice_stats.dice_types|length > 0 %}
+        <div class="row mb-4">
+            <div class="col">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Dice Statistics</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Dice Type</th>
+                                        <th>Times Rolled</th>
+                                        <th>Average</th>
+                                        <th>Total Value</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for diceType, diceData in data.dice_stats.dice_types %}
+                                        <tr>
+                                            <td>d{{ diceData.dice_type }}</td>
+                                            <td>{{ diceData.times_rolled }}</td>
+                                            <td>{{ diceData.average }}</td>
+                                            <td>{{ diceData.total_value }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {% if data.dice_stats.natural_ones > 0 or data.dice_stats.natural_twenties > 0 %}
+                            <div class="mt-3">
+                                <h6>Special Rolls (d20)</h6>
+                                <p class="mb-0">
+                                    Natural 1s: {{ data.dice_stats.natural_ones }} | 
+                                    Natural 20s: {{ data.dice_stats.natural_twenties }}
+                                </p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Sessions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Time</th>
+                                    <th>Rolls</th>
+                                    <th>Average</th>
+                                    <th>Total Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for session in sessions %}
+                                    {% if session.characters[character] is defined %}
+                                        <tr>
+                                            <td>{{ session.date }}</td>
+                                            <td>{{ session.time }}</td>
+                                            <td>{{ session.characters[character].rolls }}</td>
+                                            <td>{{ session.characters[character].average }}</td>
+                                            <td>{{ session.characters[character].total_value }}</td>
+                                        </tr>
+                                    {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %} 

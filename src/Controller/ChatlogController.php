@@ -112,23 +112,29 @@ class ChatlogController extends AbstractController
     #[Route('/chatlog/{filename}/character/{character}', name: 'app_chatlog_character')]
     public function character(string $filename, string $character): Response
     {
-        $filePath = $this->uploadDir . '/' . $filename;
+        $user = $this->security->getUser();
+        if (!$user) {
+            return $this->json(['error' => 'User not authenticated'], Response::HTTP_UNAUTHORIZED);
+        }
 
-        if (!file_exists($filePath)) {
+        $userId = $user->getUserIdentifier();
+        $filepath = $this->chatlogService->getUserDir($userId) . '/' . $filename;
+
+        if (!file_exists($filepath)) {
             throw $this->createNotFoundException('The chatlog file does not exist');
         }
 
-        $content = file_get_contents($filePath);
-        $analysis = $this->chatlogAnalyzer->analyze($content);
+        $analysis = $this->chatlogAnalyzer->analyze($filepath);
         
         if (!isset($analysis['totals']['characters'][$character])) {
-            throw $this->createNotFoundException('Character not found');
+            throw $this->createNotFoundException('Character not found in this chatlog');
         }
 
         return $this->render('chatlog/character.html.twig', [
+            'filename' => $filename,
             'character' => $character,
-            'character_data' => $analysis['totals']['characters'][$character],
-            'filename' => $filename
+            'data' => $analysis['totals']['characters'][$character],
+            'sessions' => $analysis['sessions']
         ]);
     }
 } 
