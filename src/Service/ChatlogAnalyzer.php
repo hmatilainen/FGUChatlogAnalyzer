@@ -111,8 +111,13 @@ class ChatlogAnalyzer
                     $characterTotals[$charName]['skills'][$skill] = 
                         ($characterTotals[$charName]['skills'][$skill] ?? 0) + $count;
                 }
+            }
+        }
 
-                $totalValue += $charData['total_value'];
+        // Add final skill totals to debug
+        foreach ($characterTotals as $charName => $charData) {
+            foreach ($charData['skills'] as $skill => $count) {
+                $this->debug[] = "Final skill total: {$skill} for character: {$charName} (Total across all sessions: {$count})";
             }
         }
 
@@ -161,7 +166,6 @@ class ChatlogAnalyzer
     private function processRoll(string $line): void
     {
         if (!$this->currentSession) {
-            $this->debug[] = "No active session for roll: " . trim($line);
             return;
         }
 
@@ -169,16 +173,13 @@ class ChatlogAnalyzer
         if (preg_match('/<font color="#{1,2}[0-9A-Fa-f]{6}">([^:]+):/', $line, $matches)) {
             $character = trim($matches[1]);
         } else {
-            $this->debug[] = "Could not extract character name from: " . trim($line);
             return;
         }
 
         // Extract roll value - handle more complex roll formats
         if (preg_match('/\[(?:r?\d+)?d\d+(?:\+\d+)?(?:\+d\d+)?(?:\+\d+)? = (\d+)\]/', $line, $matches)) {
             $rollValue = (int)$matches[1];
-            $this->debug[] = "Found roll value: {$rollValue} for character: {$character}";
         } else {
-            $this->debug[] = "Could not extract roll value from: " . trim($line);
             return;
         }
 
@@ -210,13 +211,21 @@ class ChatlogAnalyzer
             $this->currentSession['characters'][$character]['roll_types'][$rollType] = 
                 ($this->currentSession['characters'][$character]['roll_types'][$rollType] ?? 0) + 1;
 
-            if (isset($matches[2])) {
-                $skill = trim($matches[2]);
-                $this->currentSession['characters'][$character]['skills'][$skill] = 
-                    ($this->currentSession['characters'][$character]['skills'][$skill] ?? 0) + 1;
+            // Special handling for skill checks - simplified to just find [SKILL] and skill name
+            if (preg_match('/\[SKILL\]\s+([^[]+?)(?:\s+\[[^\]]+\])*(?:<\/font>)?\s*\[[^\]]+\]/', $line, $skillMatches)) {
+                $skill = trim($skillMatches[1]);
+                // Remove any HTML tags from the skill name
+                $skill = strip_tags($skill);
+                // Clean up any remaining whitespace
+                $skill = preg_replace('/\s+/', ' ', $skill);
+                $skill = trim($skill);
+                
+                if (!empty($skill)) {
+                    $this->currentSession['characters'][$character]['skills'][$skill] = 
+                        ($this->currentSession['characters'][$character]['skills'][$skill] ?? 0) + 1;
+                    $this->debug[] = "Found skill check: {$skill} for character: {$character} (Current session total: {$this->currentSession['characters'][$character]['skills'][$skill]})";
+                }
             }
         }
-
-        $this->debug[] = "Updated session totals - Total rolls: {$this->currentSession['total_rolls']}, Total value: {$this->currentSession['total_value']}";
     }
 } 
