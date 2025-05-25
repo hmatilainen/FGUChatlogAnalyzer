@@ -39,7 +39,7 @@
                                         <tr>
                                             <td>{{ chatlog.name }}</td>
                                             <td>{{ (chatlog.size / 1024)|number_format(1) }} KB</td>
-                                            <td>{{ chatlog.uploaded }}</td>
+                                            <td>{{ chatlog.modified|date('Y-m-d H:i:s') }}</td>
                                             <td>
                                                 <div class="btn-group">
                                                     <a href="{{ path('app_chatlog_analyze', {'filename': chatlog.name}) }}" class="btn btn-sm btn-primary">
