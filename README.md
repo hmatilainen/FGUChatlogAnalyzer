@@ -21,8 +21,8 @@ A web application that analyzes Fantasy Grounds chat logs to extract valuable in
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/fantasy-grounds-chatlog-analyzer.git
-cd fantasy-grounds-chatlog-analyzer
+git clone https://github.com/hmatilainen/FGUChatlogAnalyzer.git
+cd FGUChatlogAnalyzer
 ```
 
 2. Install dependencies:
