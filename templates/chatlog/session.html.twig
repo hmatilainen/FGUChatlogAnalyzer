@@ -12,11 +12,11 @@
     <div class="row mb-4">
         <div class="col">
             {% if app.user %}
-                <a href="{{ path('app_chatlog_analyze', {'filename': filename}) }}" class="btn btn-secondary mb-3">
+                <a href="{{ path('app_chatlog_analyze', {'filename': filename}) }}" class="btn btn-secondary">
                     <i class="fas fa-arrow-left me-2"></i>Back to Chatlog Analysis
                 </a>
             {% else %}
-                <a href="{{ path('app_home') }}" class="btn btn-secondary mb-3">
+                <a href="{{ path('app_home') }}" class="btn btn-secondary">
                     <i class="fas fa-arrow-left me-2"></i>Back to Home
                 </a>
             {% endif %}
