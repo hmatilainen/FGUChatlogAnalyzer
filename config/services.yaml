@@ -21,6 +21,16 @@ services:
             - '../src/Entity/'
             - '../src/Kernel.php'
 
+    App\Service\:
+        resource: '../src/Service/'
+        autowire: true
+        autoconfigure: true
+
+    App\EventListener\:
+        resource: '../src/EventListener/'
+        autowire: true
+        autoconfigure: true
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
 

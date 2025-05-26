@@ -122,7 +122,18 @@
 
     <footer class="footer">
         <div class="container text-center">
-            <p class="mb-0">Fantasy Grounds Chatlog Analyzer &copy; {{ "now"|date("Y") }}</p>
+            <p class="mb-0">
+                Fantasy Grounds Chatlog Analyzer &copy; {{ "now"|date("Y") }}
+                {% if git_info is defined %}
+                    <br>
+                    <small class="text-light">
+                        Version: {{ git_info.hash ?? 'unknown' }}
+                        {% if git_info.date %}
+                            ({{ git_info.date|date('Y-m-d H:i:s') }})
+                        {% endif %}
+                    </small>
+                {% endif %}
+            </p>
         </div>
     </footer>
 
