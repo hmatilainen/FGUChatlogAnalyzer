@@ -121,10 +121,12 @@ class ChatlogController extends AbstractController
         
         // Try user's directory first if authenticated
         $filepath = null;
+        $isOwner = false;
         if ($userId) {
             $userFilepath = $this->chatlogService->getUserDir($userId) . '/' . $filename;
             if (file_exists($userFilepath)) {
                 $filepath = $userFilepath;
+                $isOwner = true;
                 error_log("Using user filepath: " . $userFilepath);
             }
         }
@@ -172,7 +174,8 @@ class ChatlogController extends AbstractController
             'filename' => $filename,
             'character' => $character,
             'data' => $analysis['totals']['characters'][$character],
-            'sessions' => $analysis['sessions']
+            'sessions' => $analysis['sessions'],
+            'isOwner' => $isOwner
         ]);
     }
 
@@ -188,10 +191,12 @@ class ChatlogController extends AbstractController
         
         // Try user's directory first if authenticated
         $filepath = null;
+        $isOwner = false;
         if ($userId) {
             $userFilepath = $this->chatlogService->getUserDir($userId) . '/' . $filename;
             if (file_exists($userFilepath)) {
                 $filepath = $userFilepath;
+                $isOwner = true;
                 error_log("Using user filepath: " . $userFilepath);
             }
         }
@@ -246,7 +251,8 @@ class ChatlogController extends AbstractController
         return $this->render('chatlog/session.html.twig', [
             'filename' => $filename,
             'date' => $date,
-            'session' => $session
+            'session' => $session,
+            'isOwner' => $isOwner
         ]);
     }
 
