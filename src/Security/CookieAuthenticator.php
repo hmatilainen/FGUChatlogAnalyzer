@@ -19,11 +19,8 @@ class CookieAuthenticator extends AbstractAuthenticator
 
     public function supports(Request $request): ?bool
     {
-        // Always try to authenticate for character and session pages
-        if (preg_match('#^/chatlog/[^/]+/(character|session)/#', $request->getPathInfo())) {
-            return true;
-        }
-        return true; // Always try to authenticate for other routes
+        // Always try to authenticate for all routes
+        return true;
     }
 
     public function authenticate(Request $request): Passport

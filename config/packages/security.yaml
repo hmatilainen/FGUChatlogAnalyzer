@@ -18,4 +18,5 @@ security:
 
     access_control:
         - { path: ^/chatlog/[^/]+/(character|session)/, roles: PUBLIC_ACCESS }
-        - { path: ^/, roles: ROLE_USER } 
+        - { path: ^/chatlog/(upload|list|sessions|analyze|delete), roles: ROLE_USER }
+        - { path: ^/, roles: PUBLIC_ACCESS } 
