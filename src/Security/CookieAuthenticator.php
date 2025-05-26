@@ -19,20 +19,29 @@ class CookieAuthenticator extends AbstractAuthenticator
 
     public function supports(Request $request): ?bool
     {
-        return true; // Always try to authenticate
+        // Always try to authenticate for character and session pages
+        if (preg_match('#^/chatlog/[^/]+/(character|session)/#', $request->getPathInfo())) {
+            return true;
+        }
+        return true; // Always try to authenticate for other routes
     }
 
     public function authenticate(Request $request): Passport
     {
         $userId = $request->cookies->get(self::COOKIE_NAME);
         
+        // Debug logging
+        error_log("Cookie user ID: " . ($userId ?? 'null'));
+        
         if (!$userId) {
             $userId = bin2hex(random_bytes(16));
             $request->attributes->set('_cookie_to_set', $userId);
+            error_log("Generated new user ID: " . $userId);
         }
 
         return new SelfValidatingPassport(
             new UserBadge($userId, function($userIdentifier) {
+                error_log("Creating user with ID: " . $userIdentifier);
                 return new InMemoryUser($userIdentifier, '', ['ROLE_USER']);
             })
         );

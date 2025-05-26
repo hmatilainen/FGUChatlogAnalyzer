@@ -16,9 +16,19 @@ class ChatlogService
         $this->filesystem = new Filesystem();
     }
 
+    public function getUploadDir(): string
+    {
+        return $this->uploadDir;
+    }
+
     public function getUserDir(string $userId): string
     {
         return $this->uploadDir . '/' . $userId;
+    }
+
+    public function getPublicDir(): string
+    {
+        return $this->uploadDir . '/public';
     }
 
     public function processUpload(UploadedFile $file, string $userId): array

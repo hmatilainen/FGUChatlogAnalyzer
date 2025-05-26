@@ -17,4 +17,5 @@ security:
             custom_authenticator: App\Security\CookieAuthenticator
 
     access_control:
+        - { path: ^/chatlog/[^/]+/(character|session)/, roles: PUBLIC_ACCESS }
         - { path: ^/, roles: ROLE_USER } 

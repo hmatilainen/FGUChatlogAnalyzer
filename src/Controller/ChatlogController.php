@@ -113,20 +113,59 @@ class ChatlogController extends AbstractController
     public function character(string $filename, string $character): Response
     {
         $user = $this->security->getUser();
-        if (!$user) {
-            return $this->json(['error' => 'User not authenticated'], Response::HTTP_UNAUTHORIZED);
+        $userId = $user ? $user->getUserIdentifier() : null;
+        
+        // Debug logging
+        error_log("Requested filename: " . $filename);
+        error_log("User ID: " . ($userId ?? 'null'));
+        
+        // Try user's directory first
+        $userFilepath = $user ? $this->chatlogService->getUserDir($userId) . '/' . $filename : null;
+        $publicFilepath = $this->chatlogService->getPublicDir() . '/' . $filename;
+        
+        // Debug logging
+        error_log("User filepath: " . ($userFilepath ?? 'null'));
+        error_log("Public filepath: " . $publicFilepath);
+        
+        // Determine which filepath to use
+        $filepath = null;
+        
+        // Check user's directory first
+        if ($userFilepath && file_exists($userFilepath)) {
+            $filepath = $userFilepath;
+            error_log("Using user filepath");
+        } else {
+            // If not found in user's directory, check all user directories
+            $uploadDir = $this->chatlogService->getUploadDir();
+            if (is_dir($uploadDir)) {
+                $dirs = array_diff(scandir($uploadDir), ['.', '..', 'public']);
+                foreach ($dirs as $dir) {
+                    $potentialPath = $uploadDir . '/' . $dir . '/' . $filename;
+                    error_log("Checking potential path: " . $potentialPath);
+                    if (file_exists($potentialPath)) {
+                        $filepath = $potentialPath;
+                        error_log("Found file in directory: " . $dir);
+                        break;
+                    }
+                }
+            }
+            
+            // If still not found, check public directory
+            if (!$filepath && file_exists($publicFilepath)) {
+                $filepath = $publicFilepath;
+                error_log("Using public filepath");
+            }
         }
-
-        $userId = $user->getUserIdentifier();
-        $filepath = $this->chatlogService->getUserDir($userId) . '/' . $filename;
-
-        if (!file_exists($filepath)) {
+        
+        if (!$filepath) {
+            error_log("No valid filepath found");
             throw $this->createNotFoundException('The chatlog file does not exist');
         }
 
         $analysis = $this->chatlogAnalyzer->analyze($filepath);
         
         if (!isset($analysis['totals']['characters'][$character])) {
+            error_log("Character not found: " . $character);
             throw $this->createNotFoundException('Character not found in this chatlog');
         }
 
@@ -142,14 +181,21 @@ class ChatlogController extends AbstractController
     public function session(string $filename, string $date): Response
     {
         $user = $this->security->getUser();
-        if (!$user) {
-            return $this->json(['error' => 'User not authenticated'], Response::HTTP_UNAUTHORIZED);
+        $userId = $user ? $user->getUserIdentifier() : null;
+        
+        // Try user's directory first
+        $userFilepath = $user ? $this->chatlogService->getUserDir($userId) . '/' . $filename : null;
+        $publicFilepath = $this->chatlogService->getPublicDir() . '/' . $filename;
+        
+        // Determine which filepath to use
+        $filepath = null;
+        if ($userFilepath && file_exists($userFilepath)) {
+            $filepath = $userFilepath;
+        } elseif (file_exists($publicFilepath)) {
+            $filepath = $publicFilepath;
         }
-
-        $userId = $user->getUserIdentifier();
-        $filepath = $this->chatlogService->getUserDir($userId) . '/' . $filename;
-
-        if (!file_exists($filepath)) {
+        
+        if (!$filepath) {
             throw $this->createNotFoundException('The chatlog file does not exist');
         }
 

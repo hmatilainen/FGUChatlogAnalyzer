@@ -11,13 +11,30 @@
 <div class="container">
     <div class="row mb-4">
         <div class="col">
-            <a href="{{ path('app_chatlog_analyze', {'filename': filename}) }}" class="btn btn-secondary mb-3">
-                <i class="fas fa-arrow-left me-2"></i>Back to Chatlog Analysis
-            </a>
+            {% if app.user %}
+                <a href="{{ path('app_chatlog_analyze', {'filename': filename}) }}" class="btn btn-secondary mb-3">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Chatlog Analysis
+                </a>
+            {% else %}
+                <a href="{{ path('app_home') }}" class="btn btn-secondary mb-3">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Home
+                </a>
+            {% endif %}
             <h2>Session Analysis</h2>
             <p class="text-muted">Session from {{ date }} at {{ session.time }} in {{ filename }}</p>
         </div>
     </div>
+
+    {% if not app.user %}
+        <div class="alert alert-info mb-4">
+            <h5 class="alert-heading"><i class="fas fa-info-circle me-2"></i>Want to analyze your own chatlogs?</h5>
+            <p class="mb-0">Log in to upload and analyze your own Fantasy Grounds chatlogs!</p>
+            <hr>
+            <a href="{{ path('app_login') }}" class="btn btn-primary">
+                <i class="fas fa-sign-in-alt me-2"></i>Login Now
+            </a>
+        </div>
+    {% endif %}
 
     <div class="row mb-4">
         <div class="col-md-4">
