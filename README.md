@@ -79,7 +79,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - Fantasy Grounds for creating an amazing virtual tabletop platform
 - Symfony for the excellent PHP framework
-- All contributors who help improve this project
+- For Cursor for coding bugs like me
 
 ## Support
 
@@ -90,8 +90,4 @@ If you encounter any issues or have questions, please:
 
 ## Roadmap
 
-- [ ] Add support for multiple game systems
-- [ ] Implement advanced combat analysis
-- [ ] Add export functionality for statistics
-- [ ] Create API endpoints for external integration
-- [ ] Add support for custom dice roll patterns 
+- [ ] Fix stuff that doesn't work
