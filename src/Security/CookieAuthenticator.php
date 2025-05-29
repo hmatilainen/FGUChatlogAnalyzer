@@ -11,11 +11,40 @@ use Symfony\Component\Security\Http\Authenticator\AbstractAuthenticator;
 use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
 use Symfony\Component\Security\Http\Authenticator\Passport\Passport;
 use Symfony\Component\Security\Http\Authenticator\Passport\SelfValidatingPassport;
+use Symfony\Component\HttpKernel\Event\ResponseEvent;
+use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use Symfony\Component\HttpKernel\KernelEvents;
 
-class CookieAuthenticator extends AbstractAuthenticator
+class CookieAuthenticator extends AbstractAuthenticator implements EventSubscriberInterface
 {
     private const COOKIE_NAME = 'user_id';
     private const COOKIE_LIFETIME = 31536000; // 1 year
+    private ?string $userIdToSet = null;
+
+    public static function getSubscribedEvents(): array
+    {
+        return [
+            KernelEvents::RESPONSE => 'onKernelResponse',
+        ];
+    }
+
+    public function onKernelResponse(ResponseEvent $event): void
+    {
+        if (!$event->isMainRequest() || !$this->userIdToSet) {
+            return;
+        }
+
+        $response = $event->getResponse();
+        $response->headers->setCookie(new Cookie(
+            self::COOKIE_NAME,
+            $this->userIdToSet,
+            time() + self::COOKIE_LIFETIME,
+            '/',
+            null,
+            true, // secure
+            true  // httpOnly
+        ));
+    }
 
     public function supports(Request $request): ?bool
     {
@@ -32,7 +61,7 @@ class CookieAuthenticator extends AbstractAuthenticator
         
         if (!$userId) {
             $userId = bin2hex(random_bytes(16));
-            $request->attributes->set('_cookie_to_set', $userId);
+            $this->userIdToSet = $userId;
             error_log("Generated new user ID: " . $userId);
         }
 
@@ -46,21 +75,7 @@ class CookieAuthenticator extends AbstractAuthenticator
 
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): ?Response
     {
-        $userId = $request->attributes->get('_cookie_to_set');
-        if ($userId) {
-            $response = new Response();
-            $response->headers->setCookie(new Cookie(
-                self::COOKIE_NAME,
-                $userId,
-                time() + self::COOKIE_LIFETIME,
-                '/',
-                null,
-                true, // secure
-                true  // httpOnly
-            ));
-            return $response;
-        }
-
+        // We don't need to return a response here anymore as we're using the event subscriber
         return null;
     }
 
