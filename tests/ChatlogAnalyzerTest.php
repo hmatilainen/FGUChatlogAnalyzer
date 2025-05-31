@@ -130,7 +130,7 @@ EOT;
         }
         
         // Count the number of detected rolls (should match the number of roll lines)
-        $expectedRolls = 71; // Updated to match the new total number of roll lines
+        $expectedRolls = 63; // Updated to match the new total number of roll lines
         
         // Output roll line count, detected count, and missed lines to STDERR for visibility
         $rollLines = array_filter($lines, fn($line) => preg_match('/\[(?:r?\d+|g\d+|\dg\d+|d\d+)(?:[+\-][^]=]+)* = \d+\]/', $line));

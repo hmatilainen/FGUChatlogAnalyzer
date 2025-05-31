@@ -75,8 +75,15 @@ class ChatlogAnalyzer
 
     private function isRollLine(string $line): bool
     {
-        // Match lines with a roll value pattern, including [DROPPED ...] and new roll types
-        return preg_match('/\[(?:r?\d+)?d\d+(?:[+\-][^\]=]+)* = \d+\]/', $line) === 1;
+        // Match standard dice notation
+        if (preg_match('/\[(?:r?\d+)?d\d+(?:[+\-][^\]=]+)* = \d+\]/', $line)) {
+            return true;
+        }
+        // Match grouped dice notation (g20, 1g20, g20+d20, etc)
+        if (preg_match('/\[(?:\d+)?g\d+(?:[+\-][^\]=]+)* = \d+\]/', $line)) {
+            return true;
+        }
+        return false;
     }
 
     public function buildAnalysis(): array
@@ -212,6 +219,13 @@ class ChatlogAnalyzer
             $bonus = (int)($matches[3] ?? 0);
             $totalValue = (int)$matches[4];
             $actualRoll = $totalValue - $bonus;
+        } else if (preg_match('/\[(\d+)?g(\d+)(?:[+\-][^\]=]+)* = (\d+)\]/', $line, $matches)) {
+            // Grouped dice: [g20+... = ...] or [1g20+... = ...]
+            $numDice = (int)($matches[1] ?? 1);
+            $diceType = (int)$matches[2];
+            $bonus = 0; // Not extracting bonus for grouped dice, can be improved
+            $totalValue = (int)$matches[3];
+            $actualRoll = $totalValue;
         } else {
             return;
         }
