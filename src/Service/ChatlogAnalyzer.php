@@ -15,10 +15,72 @@ class ChatlogAnalyzer
             throw new \RuntimeException('Could not read file contents');
         }
 
+        $this->resetState();
+
+        $lines = explode("\n", $content);
+        foreach ($lines as $line) {
+            $this->analyzeLine($line);
+        }
+
+        $this->finalizeSession();
+        return $this->buildAnalysis();
+    }
+
+    private function resetState(): void
+    {
+        $this->sessions = [];
+        $this->currentSession = null;
         $this->debug = [];
         $this->debug[] = "Starting analysis...";
-        
-        $lines = explode("\n", $content);
+    }
+
+    public function analyzeLinePublic(string $line): bool
+    {
+        return $this->analyzeLine($line);
+    }
+
+    private function analyzeLine(string $line): bool
+    {
+        if ($session = $this->detectSessionStart($line)) {
+            $this->startNewSession($session['date'], $session['time']);
+            $this->debug[] = "Found session start: {$session['date']} at {$session['time']}";
+            return true;
+        }
+
+        if ($this->isRollLine($line)) {
+            $this->debug[] = "Found roll line: " . trim($line);
+            $this->processRoll($line);
+            return true;
+        }
+        return false;
+    }
+
+    private function detectSessionStart(string $line): ?array
+    {
+        if (preg_match('/Session started at (\d{4}-\d{2}-\d{2}) \/ (\d{2}:\d{2})/', $line, $matches) ||
+            preg_match('/Chat log started at (\d{1,2}\.\d{1,2}\.\d{4}) \/ (\d{2}:\d{2}:\d{2})/', $line, $matches)) {
+            $date = $matches[1];
+            $time = $matches[2];
+            if (strpos($date, '.') !== false) {
+                $dateParts = explode('.', $date);
+                $date = sprintf('%04d-%02d-%02d', $dateParts[2], $dateParts[1], $dateParts[0]);
+            }
+            if (strlen($time) > 5) {
+                $time = substr($time, 0, 5);
+            }
+            return ['date' => $date, 'time' => $time];
+        }
+        return null;
+    }
+
+    private function isRollLine(string $line): bool
+    {
+        // Match lines with a roll value pattern, including [DROPPED ...] and new roll types
+        return preg_match('/\[(?:r?\d+)?d\d+(?:[+\-][^\]=]+)* = \d+\]/', $line) === 1;
+    }
+
+    public function buildAnalysis(): array
+    {
         $analysis = [
             'totals' => [
                 'rolls' => 0,
@@ -29,66 +91,13 @@ class ChatlogAnalyzer
             'debug' => &$this->debug
         ];
 
-        $foundFirstSession = false;
-        $foundRollsBeforeSession = false;
-
-        foreach ($lines as $line) {
-            // Check for session start - handle both formats
-            if (preg_match('/Session started at (\d{4}-\d{2}-\d{2}) \/ (\d{2}:\d{2})/', $line, $matches) ||
-                preg_match('/Chat log started at (\d{1,2}\.\d{1,2}\.\d{4}) \/ (\d{2}:\d{2}:\d{2})/', $line, $matches)) {
-                
-                if (!$foundFirstSession) {
-                    $foundFirstSession = true;
-                    // If we found rolls before the first session, create a default session
-                    if ($foundRollsBeforeSession) {
-                        $this->startNewSession('Unknown', 'Unknown');
-                        $this->debug[] = "Created default session for rolls before first explicit session";
-                    }
-                }
-
-                // Convert date format if needed
-                $date = $matches[1];
-                $time = $matches[2];
-                
-                // Convert from DD.MM.YYYY to YYYY-MM-DD if needed
-                if (strpos($date, '.') !== false) {
-                    $dateParts = explode('.', $date);
-                    $date = sprintf('%04d-%02d-%02d', $dateParts[2], $dateParts[1], $dateParts[0]);
-                }
-
-                // Remove seconds from time if present
-                if (strlen($time) > 5) {
-                    $time = substr($time, 0, 5);
-                }
-
-                $this->startNewSession($date, $time);
-                $this->debug[] = "Found session start: {$date} at {$time}";
-                continue;
-            }
-
-            // Check for roll lines
-            if (preg_match('/\[.*d.*\]/', $line)) {
-                if (!$foundFirstSession) {
-                    $foundRollsBeforeSession = true;
-                }
-                $this->debug[] = "Found roll line: " . trim($line);
-                $this->processRoll($line);
-            }
-        }
-
-        // Finalize the last session
-        $this->finalizeSession();
-
-        // Calculate totals
         $totalRolls = 0;
         $totalValue = 0;
         $characterTotals = [];
 
         foreach ($this->sessions as $session) {
             $totalRolls += $session['total_rolls'];
-            
             foreach ($session['characters'] as $charName => $charData) {
-                // Initialize character totals if not exists
                 if (!isset($characterTotals[$charName])) {
                     $characterTotals[$charName] = [
                         'rolls' => 0,
@@ -103,26 +112,18 @@ class ChatlogAnalyzer
                         ]
                     ];
                 }
-
-                // Update character totals
                 $characterTotals[$charName]['rolls'] += $charData['rolls'];
                 $characterTotals[$charName]['total_value'] += $charData['total_value'];
                 $characterTotals[$charName]['average'] = 
                     round($characterTotals[$charName]['total_value'] / $characterTotals[$charName]['rolls'], 2);
-
-                // Merge roll types
                 foreach ($charData['roll_types'] as $type => $count) {
                     $characterTotals[$charName]['roll_types'][$type] = 
                         ($characterTotals[$charName]['roll_types'][$type] ?? 0) + $count;
                 }
-
-                // Merge skills
                 foreach ($charData['skills'] as $skill => $count) {
                     $characterTotals[$charName]['skills'][$skill] = 
                         ($characterTotals[$charName]['skills'][$skill] ?? 0) + $count;
                 }
-
-                // Merge dice statistics
                 foreach ($charData['dice_stats']['dice_types'] as $diceType => $diceData) {
                     $diceKey = "d{$diceType}";
                     if (!isset($characterTotals[$charName]['dice_stats']['dice_types'][$diceKey])) {
@@ -134,7 +135,6 @@ class ChatlogAnalyzer
                             'dice_type' => $diceType
                         ];
                     }
-
                     $diceStats = &$characterTotals[$charName]['dice_stats']['dice_types'][$diceKey];
                     $diceStats['times_rolled'] += $diceData['times_rolled'];
                     $diceStats['total_rolls'] += $diceData['total_rolls'];
@@ -143,27 +143,20 @@ class ChatlogAnalyzer
                         ? round($diceStats['total_value'] / $diceStats['times_rolled'], 2)
                         : 0;
                 }
-
-                // Track natural ones and twenties for d20
                 $characterTotals[$charName]['dice_stats']['natural_ones'] += $charData['dice_stats']['natural_ones'];
                 $characterTotals[$charName]['dice_stats']['natural_twenties'] += $charData['dice_stats']['natural_twenties'];
             }
         }
-
-        // Add final skill totals to debug
         foreach ($characterTotals as $charName => $charData) {
             foreach ($charData['skills'] as $skill => $count) {
                 $this->debug[] = "Final skill total: {$skill} for character: {$charName} (Total across all sessions: {$count})";
             }
         }
-
         $analysis['totals']['rolls'] = $totalRolls;
         $analysis['totals']['average'] = $totalRolls > 0 ? round($totalValue / $totalRolls, 2) : 0;
         $analysis['totals']['characters'] = $characterTotals;
         $analysis['sessions'] = $this->sessions;
-
         $this->debug[] = "Analysis complete. Total rolls: {$totalRolls}, Average: {$analysis['totals']['average']}, Characters: " . count($characterTotals);
-        
         return $analysis;
     }
 
@@ -275,6 +268,41 @@ class ChatlogAnalyzer
             if ($actualRoll === 1) {
                 $this->currentSession['characters'][$character]['dice_stats']['natural_ones']++;
             } elseif ($actualRoll === 20) {
+                $this->currentSession['characters'][$character]['dice_stats']['natural_twenties']++;
+            }
+        }
+
+        // If [ADV] and [DROPPED X] are present, count the dropped value as a d20 roll
+        if (strpos($line, '[ADV]') !== false && preg_match('/\[DROPPED (\d+)\]/', $line, $dropMatch)) {
+            $droppedValue = (int)$dropMatch[1];
+            // Count the dropped d20 roll for the same character
+            $this->currentSession['characters'][$character]['rolls']++;
+            $this->currentSession['characters'][$character]['total_value'] += $droppedValue;
+            $this->currentSession['characters'][$character]['average'] = 
+                round($this->currentSession['characters'][$character]['total_value'] / 
+                      $this->currentSession['characters'][$character]['rolls'], 2);
+            // Update d20 stats for dropped value
+            $d20Key = 'd20';
+            if (!isset($this->currentSession['characters'][$character]['dice_stats']['dice_types'][$d20Key])) {
+                $this->currentSession['characters'][$character]['dice_stats']['dice_types'][$d20Key] = [
+                    'total_rolls' => 0,
+                    'total_value' => 0,
+                    'average' => 0,
+                    'times_rolled' => 0,
+                    'dice_type' => 20
+                ];
+            }
+            $d20Stats = &$this->currentSession['characters'][$character]['dice_stats']['dice_types'][$d20Key];
+            $d20Stats['times_rolled']++;
+            $d20Stats['total_rolls']++;
+            $d20Stats['total_value'] += $droppedValue;
+            $d20Stats['average'] = $d20Stats['times_rolled'] > 0 
+                ? round($d20Stats['total_value'] / $d20Stats['times_rolled'], 2)
+                : 0;
+            // Track natural ones and twenties for d20
+            if ($droppedValue === 1) {
+                $this->currentSession['characters'][$character]['dice_stats']['natural_ones']++;
+            } elseif ($droppedValue === 20) {
                 $this->currentSession['characters'][$character]['dice_stats']['natural_twenties']++;
             }
         }

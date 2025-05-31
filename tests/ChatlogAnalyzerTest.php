@@ -46,13 +46,6 @@ EOT;
 
     public function testAnalyzeDetectsComplexRollPatterns()
     {
-        // Step 1: Simple file write test
-        $testFile = __DIR__ . '/../file_write_test.txt';
-        file_put_contents($testFile, 'File write test successful.\n');
-        // Step 2: Simple missed_rolls.txt write test
-        $missedFile = __DIR__ . '/../missed_rolls.txt';
-        file_put_contents($missedFile, 'Missed rolls file write test successful.\n');
-
         $chatlog = <<<EOT
 Session started at 2024-06-01 / 18:00
 <font color="#660066">Chelicerae: [DAMAGE (M)] Bite [CRITICAL] [TYPE: piercing (2d10+6=9)] [TYPE: piercing,critical (2d10=15)]</font> [2d10+2g10+6 = 24]<br />
@@ -98,7 +91,6 @@ Session started at 2024-06-01 / 18:00
 <font color="#660066">Cain: [SKILL] History</font> [1d20 = 3]<br />
 <font color="#660066">Malekith: [SKILL] History [PROF]</font> [1d20+7 = 13]<br />
 <font color="#660066">Myrbec: [SKILL] Investigation [EFFECTS]</font> [1d20+4 = 6]<br />
-<font color="#660066">Rudi: Bardic Inspiration</font><br />
 <font color="#660066">Malekith: [SKILL] Investigation</font> [1d20+4 = 21]<br />
 <font color="#660066">Rudi: </font> [1d8 = 1]<br />
 <font color="#660066">Myrbec: [SKILL] Persuasion [EFFECTS]</font> [1d20-1 = 14]<br />
@@ -109,22 +101,39 @@ Session started at 2024-06-01 / 18:00
 <font color="#660066">Myrbec: [SKILL] Investigation [EFFECTS]</font> [1d20+4 = 20]<br />
 <font color="#660066">Cain: [SKILL] Athletics [PROF]</font> [1d20+7 = 26]<br />
 <font color="#660066">Myrbec: [SKILL] Investigation [EFFECTS]</font> [1d20+4 = 12]<br />
+<font color="#660066">Emrys: [DEATH] [SUCCESS]</font> [1d20 = 17]<br />
+<font color="#660066">Emrys: [DEATH] [SUCCESS]</font> [1d20 = 10]<br />
+<font color="#660066">Rudi: [DEATH] [CRITICAL FAILURE]</font> [d20 = 1]<br />
+<font color="#660066">Cain: [DEATH] [EFFECTS] [FAILURE]</font> [d20 = 3]<br />
+<font color="#660066">Rudi: [ATTACK (M)] Dagger [OPPORTUNITY] </font> [1d20+7 = 11]<br />
+<font color="#660066">Rudi: [ATTACK (M)] Dagger (20/60) [COVER -2] [EFFECTS] [ +0] </font> [1d20+6 = 16]<br />
+<font color="#660066">Rudi: [ATTACK (M)] Dagger (20/60) [COVER -5] [EFFECTS] </font> [1d20+3 = 18]<br />
+<font color="#660066">Rudi: [ATTACK (M)] Dagger (20/60) [EFFECTS] </font> [1d20+8 = 11]<br />
+<font color="#660066">Rudi: [DAMAGE (M)] Dagger (20/60) [HALF] [TYPE: piercing (1d4+5=9)]</font> [1d4+5 = 9]<br />
+<font color="#660066">Rudi: [DAMAGE (M)] Dagger (20/60) [TYPE: piercing (1d4+5=6)]</font> [1d4+5 = 6]<br />
 EOT;
-        $tmpFile = tempnam(sys_get_temp_dir(), 'chatlog');
-        file_put_contents($tmpFile, $chatlog);
-
+        $lines = explode("\n", $chatlog);
         $analyzer = new ChatlogAnalyzer();
-        $result = $analyzer->analyze($tmpFile);
-    
-        unlink($tmpFile);
+        $unmatchedLines = [];
+        foreach ($lines as $line) {
+            if (!$analyzer->analyzeLinePublic($line)) {
+                $unmatchedLines[] = $line;
+            }
+        }
+        $result = $analyzer->buildAnalysis();
+        if (!empty($unmatchedLines)) {
+            error_log("--- Unmatched lines ---");
+            foreach ($unmatchedLines as $line) {
+                error_log($line);
+            }
+            error_log("--- End unmatched lines ---");
+        }
         
         // Count the number of detected rolls (should match the number of roll lines)
-        $expectedRolls = 54; // Update this if you count a different number of roll lines
+        $expectedRolls = 71; // Updated to match the new total number of roll lines
         
         // Output roll line count, detected count, and missed lines to STDERR for visibility
-        $lines = explode("\n", $chatlog);
-        $rollLinePattern = '/\[.*d.*\]/';
-        $rollLines = array_filter($lines, fn($line) => preg_match($rollLinePattern, $line));
+        $rollLines = array_filter($lines, fn($line) => preg_match('/\[(?:r?\d+|g\d+|\dg\d+|d\d+)(?:[+\-][^]=]+)* = \d+\]/', $line));
 
         // Extract detected roll lines from $result['debug']
         $detectedRollLines = array_map(
@@ -132,20 +141,14 @@ EOT;
             array_filter($result['debug'], fn($entry) => str_starts_with($entry, 'Found roll line:'))
         );
         
+        // Remove Bardic Inspiration from roll lines (it is not a roll)
+        $rollLines = array_filter($rollLines, fn($line) => stripos($line, 'Bardic Inspiration') === false);
         // Find missed roll lines (in input but not detected)
         $missed = array_diff($rollLines, $detectedRollLines);
 
         // Output roll line count, detected count, and missed lines to STDERR for visibility
         error_log("Total roll lines in input: ".count($rollLines));
         error_log("Total roll lines detected by analyzer: ".count($detectedRollLines));
-        error_log("--- All roll lines in input ---");
-        foreach ($rollLines as $line) {
-            error_log($line);
-        }
-        error_log("--- All roll lines detected by analyzer ---");
-        foreach ($detectedRollLines as $line) {
-            error_log($line);
-        }
         error_log("--- Missed roll lines (in input but not detected) ---");
         foreach ($missed as $line) {
             error_log($line);
@@ -163,7 +166,24 @@ EOT;
         foreach ($expectedCharacters as $character) {
             $this->assertArrayHasKey($character, $result['totals']['characters'], "Should detect character: $character");
         }
-        
+        // --- New assertions for [ADV] + [DROPPED] logic ---
+        // Lambert Ulbrinter: [ATTACK (R)] Chill Touch [ADV] [DROPPED 9] [g20+d20+7 = 21]
+        $lambert = $result['totals']['characters']['Lambert Ulbrinter'];
+        $this->assertArrayHasKey('d20', $lambert['dice_stats']['dice_types']);
+        $this->assertGreaterThanOrEqual(2, $lambert['dice_stats']['dice_types']['d20']['times_rolled'], 'Lambert should have at least 2 d20 rolls (main + dropped)');
+        // Cain: [SKILL] Survival [PROF] [ADV] [DROPPED 9] [1g20+5 = 15]
+        $cain = $result['totals']['characters']['Cain'];
+        $this->assertArrayHasKey('d20', $cain['dice_stats']['dice_types']);
+        $this->assertGreaterThanOrEqual(2, $cain['dice_stats']['dice_types']['d20']['times_rolled'], 'Cain should have at least 2 d20 rolls (main + dropped)');
+        // Rudi: [ATTACK (M)] Dagger [ADV] [DROPPED 6] [1g20+8 = 28]
+        $rudi = $result['totals']['characters']['Rudi'];
+        $this->assertArrayHasKey('d20', $rudi['dice_stats']['dice_types']);
+        $this->assertGreaterThanOrEqual(2, $rudi['dice_stats']['dice_types']['d20']['times_rolled'], 'Rudi should have at least 2 d20 rolls (main + dropped)');
+        // Cain: [SKILL] Religion [ADV] [DROPPED 3] [1g20 = 6]
+        $this->assertGreaterThanOrEqual(3, $cain['dice_stats']['dice_types']['d20']['times_rolled'], 'Cain should have at least 3 d20 rolls (main + dropped for two [ADV] lines)');
+        // Cain: [SKILL] Persuasion [PROF x2] [ADV] [DROPPED 3] [1g20+5 = 25]
+        $this->assertGreaterThanOrEqual(4, $cain['dice_stats']['dice_types']['d20']['times_rolled'], 'Cain should have at least 4 d20 rolls (main + dropped for three [ADV] lines)');
+        // --- End new assertions ---
         echo "Are we here?\n";
     }
 } 
