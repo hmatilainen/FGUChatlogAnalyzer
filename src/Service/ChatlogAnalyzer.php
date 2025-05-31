@@ -183,7 +183,7 @@ class ChatlogAnalyzer
         $this->debug[] = "Started new session: {$date} at {$time}";
     }
 
-    private function finalizeSession(): void
+    public function finalizeSession(): void
     {
         if (!$this->currentSession) {
             return;
@@ -209,16 +209,24 @@ class ChatlogAnalyzer
         if (preg_match('/<font color="#{1,2}[0-9A-Fa-f]{6}">([^:]+):/', $line, $matches)) {
             $character = trim($matches[1]);
         } else {
+            $this->debug[] = "Skipped roll line (no character match): " . trim($line);
             return;
         }
 
         // Extract roll value and dice information
-        if (preg_match('/\[(?:r?(\d+))?d(\d+)(?:\+(\d+))?(?:\+d\d+)?(?:\+\d+)? = (\d+)\]/', $line, $matches)) {
+        if (preg_match('/\[(?:r?(\d+))?d(\d+)(?:([+\-])(\d+))?(?:\+d\d+)?(?:\+\d+)? = (\d+)\]/', $line, $matches)) {
             $numDice = (int)($matches[1] ?? 1);
             $diceType = (int)$matches[2];
-            $bonus = (int)($matches[3] ?? 0);
-            $totalValue = (int)$matches[4];
-            $actualRoll = $totalValue - $bonus;
+            $sign = $matches[3] ?? null;
+            $bonusValue = isset($matches[4]) ? (int)$matches[4] : 0;
+            $totalValue = (int)$matches[5];
+            if ($sign === '-') {
+                $actualRoll = $totalValue + $bonusValue;
+                $bonus = -$bonusValue;
+            } else {
+                $actualRoll = $totalValue - $bonusValue;
+                $bonus = $bonusValue;
+            }
         } else if (preg_match('/\[(\d+)?g(\d+)(?:[+\-][^\]=]+)* = (\d+)\]/', $line, $matches)) {
             // Grouped dice: [g20+... = ...] or [1g20+... = ...]
             $numDice = (int)($matches[1] ?? 1);
@@ -227,6 +235,7 @@ class ChatlogAnalyzer
             $totalValue = (int)$matches[3];
             $actualRoll = $totalValue;
         } else {
+            $this->debug[] = "Skipped roll line (no roll extraction match): " . trim($line);
             return;
         }
 

@@ -120,7 +120,9 @@ EOT;
                 $unmatchedLines[] = $line;
             }
         }
-        $result = $analyzer->buildAnalysis();
+        // Finalize the last session so all rolls are counted
+        $analyzer->finalizeSession();
+        $result = $analyzer->buildAnalysis();var_dump($result['debug']);
         if (!empty($unmatchedLines)) {
             error_log("--- Unmatched lines ---");
             foreach ($unmatchedLines as $line) {
@@ -133,7 +135,16 @@ EOT;
         $expectedRolls = 63; // Updated to match the new total number of roll lines
         
         // Output roll line count, detected count, and missed lines to STDERR for visibility
-        $rollLines = array_filter($lines, fn($line) => preg_match('/\[(?:r?\d+|g\d+|\dg\d+|d\d+)(?:[+\-][^]=]+)* = \d+\]/', $line));
+        $rollLines = array_filter($lines, function($line) {
+            // Use the same logic as isRollLine in the analyzer
+            if (preg_match('/\[(?:r?\d+)?d\d+(?:[+\-][^\]=]+)* = \d+\]/', $line)) {
+                return true;
+            }
+            if (preg_match('/\[(?:\d+)?g\d+(?:[+\-][^\]=]+)* = \d+\]/', $line)) {
+                return true;
+            }
+            return false;
+        });
 
         // Extract detected roll lines from $result['debug']
         $detectedRollLines = array_map(
@@ -141,19 +152,13 @@ EOT;
             array_filter($result['debug'], fn($entry) => str_starts_with($entry, 'Found roll line:'))
         );
         
-        // Remove Bardic Inspiration from roll lines (it is not a roll)
-        $rollLines = array_filter($rollLines, fn($line) => stripos($line, 'Bardic Inspiration') === false);
-        // Find missed roll lines (in input but not detected)
-        $missed = array_diff($rollLines, $detectedRollLines);
-
-        // Output roll line count, detected count, and missed lines to STDERR for visibility
-        error_log("Total roll lines in input: ".count($rollLines));
-        error_log("Total roll lines detected by analyzer: ".count($detectedRollLines));
-        error_log("--- Missed roll lines (in input but not detected) ---");
-        foreach ($missed as $line) {
+        // Print lines that are matched by isRollLine but not processed as rolls
+        $notProcessed = array_diff($rollLines, $detectedRollLines);
+        error_log("--- Lines matched by isRollLine but not processed as rolls ---");
+        foreach ($notProcessed as $line) {
             error_log($line);
         }
-        error_log("--- End missed roll lines ---");
+        error_log("--- End lines not processed as rolls ---");
         
         $this->assertEquals($expectedRolls, $result['totals']['rolls'], 'Should detect all complex roll patterns');
         echo "Kekkonen2";
