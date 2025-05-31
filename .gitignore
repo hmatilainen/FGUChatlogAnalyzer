@@ -18,3 +18,8 @@
 ###< uploads ###
 .env.dev
 /myenv
+
+###> phpunit/phpunit ###
+/phpunit.xml
+/.phpunit.cache/
+###< phpunit/phpunit ###

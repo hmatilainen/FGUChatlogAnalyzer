@@ -280,7 +280,7 @@ class ChatlogAnalyzer
         }
 
         // Extract roll type and skill if present
-        if (preg_match('/\[(ATTACK|DAMAGE|SKILL|SAVE|CHECK|TOWER|CAST)(?:\s+\([^)]+\))?(?:\s+([^]]+))?\]/', $line, $matches)) {
+        if (preg_match('/\[([A-Z]+)(?:\s+\([^)]+\))?(?:\s+([^\]]+))?\]/', $line, $matches)) {
             $rollType = $matches[1];
             $this->currentSession['characters'][$character]['roll_types'][$rollType] = 
                 ($this->currentSession['characters'][$character]['roll_types'][$rollType] ?? 0) + 1;
