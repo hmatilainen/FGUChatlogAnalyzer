@@ -290,4 +290,25 @@
         </div>
     </div>
 </div>
+{% if analysis.skipped_rolls is defined and analysis.skipped_rolls|length > 0 %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">Skipped Roll Lines</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">These lines were detected as roll-like but could not be parsed. Review to spot patterns for future improvements.</p>
+                    <ul class="list-group">
+                        {% for line in analysis.skipped_rolls %}
+                        <li class="list-group-item small">{{ line }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %} 

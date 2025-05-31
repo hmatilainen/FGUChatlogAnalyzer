@@ -7,6 +7,7 @@ class ChatlogAnalyzer
     private array $sessions = [];
     private ?array $currentSession = null;
     private array $debug = [];
+    private array $skippedRolls = [];
 
     public function analyze(string $filepath): array
     {
@@ -32,6 +33,7 @@ class ChatlogAnalyzer
         $this->currentSession = null;
         $this->debug = [];
         $this->debug[] = "Starting analysis...";
+        $this->skippedRolls = [];
     }
 
     public function analyzeLinePublic(string $line): bool
@@ -95,7 +97,8 @@ class ChatlogAnalyzer
                 'characters' => []
             ],
             'sessions' => [],
-            'debug' => &$this->debug
+            'debug' => &$this->debug,
+            'skipped_rolls' => $this->skippedRolls
         ];
 
         $totalRolls = 0;
@@ -210,6 +213,7 @@ class ChatlogAnalyzer
             $character = trim($matches[1]);
         } else {
             $this->debug[] = "Skipped roll line (no character match): " . trim($line);
+            $this->skippedRolls[] = trim($line);
             return;
         }
 
@@ -252,6 +256,7 @@ class ChatlogAnalyzer
             $actualRoll = $totalValue;
         } else {
             $this->debug[] = "Skipped roll line (no roll extraction match): " . trim($line);
+            $this->skippedRolls[] = trim($line);
             return;
         }
 
