@@ -214,6 +214,7 @@ class ChatlogAnalyzer
         }
 
         // Extract roll value and dice information
+        // 1. Standard numeric modifier (positive or negative)
         if (preg_match('/\[(?:r?(\d+))?d(\d+)(?:([+\-])(\d+))?(?:\+d\d+)?(?:\+\d+)? = (\d+)\]/', $line, $matches)) {
             $numDice = (int)($matches[1] ?? 1);
             $diceType = (int)$matches[2];
@@ -226,6 +227,21 @@ class ChatlogAnalyzer
             } else {
                 $actualRoll = $totalValue - $bonusValue;
                 $bonus = $bonusValue;
+            }
+        }
+        // 2. Proficiency bonus modifier (e.g., +p4 or -p4)
+        else if (preg_match('/\[(?:r?(\d+))?d(\d+)([+\-])p(\d+)(?:\+d\d+)?(?:\+\d+)? = (\d+)\]/', $line, $matches)) {
+            $numDice = (int)($matches[1] ?? 1);
+            $diceType = (int)$matches[2];
+            $sign = $matches[3];
+            $profValue = (int)$matches[4];
+            $totalValue = (int)$matches[5];
+            if ($sign === '-') {
+                $actualRoll = $totalValue + $profValue;
+                $bonus = -$profValue;
+            } else {
+                $actualRoll = $totalValue - $profValue;
+                $bonus = $profValue;
             }
         } else if (preg_match('/\[(\d+)?g(\d+)(?:[+\-][^\]=]+)* = (\d+)\]/', $line, $matches)) {
             // Grouped dice: [g20+... = ...] or [1g20+... = ...]
