@@ -2,16 +2,49 @@
 
 namespace App\Service;
 
+/**
+ * Service for retrieving Git commit hash and date for the current project.
+ *
+ * @package App\Service
+ */
 class GitInfoService
 {
     private ?string $gitHash = null;
     private ?string $gitDate = null;
 
+    /**
+     * GitInfoService constructor. Loads git info on instantiation.
+     */
     public function __construct()
     {
         $this->loadGitInfo();
     }
 
+    /**
+     * Get the short Git commit hash.
+     *
+     * @return string|null
+     */
+    public function getGitHash(): ?string
+    {
+        return $this->gitHash ? substr($this->gitHash, 0, 7) : null;
+    }
+
+    /**
+     * Get the date of the current Git commit.
+     *
+     * @return string|null
+     */
+    public function getGitDate(): ?string
+    {
+        return $this->gitDate;
+    }
+
+    /**
+     * Load the Git commit hash and date from the .git directory.
+     *
+     * @return void
+     */
     private function loadGitInfo(): void
     {
         $gitPath = dirname(__DIR__, 2) . '/.git';
@@ -51,15 +84,5 @@ class GitInfoService
                 }
             }
         }
-    }
-
-    public function getGitHash(): ?string
-    {
-        return $this->gitHash ? substr($this->gitHash, 0, 7) : null;
-    }
-
-    public function getGitDate(): ?string
-    {
-        return $this->gitDate;
     }
 } 

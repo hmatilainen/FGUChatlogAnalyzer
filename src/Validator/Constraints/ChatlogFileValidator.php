@@ -7,8 +7,20 @@ use Symfony\Component\Validator\ConstraintValidator;
 use Symfony\Component\Validator\Exception\UnexpectedTypeException;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
+/**
+ * Validator for chatlog file uploads, checking extension and size.
+ *
+ * @package App\Validator\Constraints
+ */
 class ChatlogFileValidator extends ConstraintValidator
 {
+    /**
+     * Validate the uploaded file against the ChatlogFile constraint.
+     *
+     * @param mixed $value
+     * @param Constraint $constraint
+     * @return void
+     */
     public function validate($value, Constraint $constraint): void
     {
         if (!$constraint instanceof ChatlogFile) {
@@ -40,6 +52,12 @@ class ChatlogFileValidator extends ConstraintValidator
         }
     }
 
+    /**
+     * Parse a human-readable size string (e.g., 2M, 500K) into bytes.
+     *
+     * @param string $size
+     * @return int
+     */
     private function parseSize(string $size): int
     {
         $unit = strtolower(substr($size, -1));
