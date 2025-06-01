@@ -18,12 +18,24 @@ use Symfony\Bundle\SecurityBundle\Security;
 use App\Form\ChatlogUploadType;
 use App\Service\ChatlogService;
 
+/**
+ * Controller for chatlog upload, analysis, and session/character views.
+ *
+ * @package App\Controller
+ */
 class ChatlogController extends AbstractController
 {
     private ChatlogAnalyzer $chatlogAnalyzer;
     private Security $security;
     private ChatlogService $chatlogService;
 
+    /**
+     * ChatlogController constructor.
+     *
+     * @param ChatlogAnalyzer $chatlogAnalyzer
+     * @param Security $security
+     * @param ChatlogService $chatlogService
+     */
     public function __construct(ChatlogAnalyzer $chatlogAnalyzer, Security $security, ChatlogService $chatlogService)
     {
         $this->chatlogAnalyzer = $chatlogAnalyzer;
@@ -31,6 +43,12 @@ class ChatlogController extends AbstractController
         $this->chatlogService = $chatlogService;
     }
 
+    /**
+     * Upload a chatlog file and process it for the current user.
+     *
+     * @param Request $request
+     * @return Response
+     */
     #[Route('/chatlog/upload', name: 'app_chatlog_upload')]
     public function upload(Request $request): Response
     {
@@ -56,6 +74,12 @@ class ChatlogController extends AbstractController
         ]);
     }
 
+    /**
+     * Analyze a chatlog file and render the analysis view.
+     *
+     * @param string $filename
+     * @return Response
+     */
     #[Route('/chatlog/analyze/{filename}', name: 'app_chatlog_analyze', methods: ['GET'])]
     public function analyze(string $filename): Response
     {
@@ -79,6 +103,11 @@ class ChatlogController extends AbstractController
         ]);
     }
 
+    /**
+     * List all chatlogs for the current user.
+     *
+     * @return Response
+     */
     #[Route('/chatlog/list', name: 'app_chatlog_list')]
     public function list(): Response
     {
@@ -90,6 +119,12 @@ class ChatlogController extends AbstractController
         ]);
     }
 
+    /**
+     * Delete a chatlog file for the current user.
+     *
+     * @param string $filename
+     * @return Response
+     */
     #[Route('/chatlog/delete/{filename}', name: 'app_chatlog_delete', methods: ['DELETE'])]
     public function delete(string $filename): Response
     {
@@ -109,6 +144,13 @@ class ChatlogController extends AbstractController
         return $this->json(['success' => true]);
     }
 
+    /**
+     * Show analysis for a specific character in a chatlog.
+     *
+     * @param string $filename
+     * @param string $character
+     * @return Response
+     */
     #[Route('/chatlog/{filename}/character/{character}', name: 'app_chatlog_character')]
     public function character(string $filename, string $character): Response
     {
@@ -179,6 +221,13 @@ class ChatlogController extends AbstractController
         ]);
     }
 
+    /**
+     * Show analysis for a specific session in a chatlog.
+     *
+     * @param string $filename
+     * @param string $date
+     * @return Response
+     */
     #[Route('/chatlog/{filename}/session/{date}', name: 'app_chatlog_session')]
     public function session(string $filename, string $date): Response
     {
@@ -256,6 +305,11 @@ class ChatlogController extends AbstractController
         ]);
     }
 
+    /**
+     * List all sessions found in all chatlogs for the current user.
+     *
+     * @return Response
+     */
     #[Route('/chatlog/sessions', name: 'app_chatlog_sessions')]
     public function sessions(): Response
     {

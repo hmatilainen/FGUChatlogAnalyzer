@@ -10,15 +10,31 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
 
+/**
+ * Controller for user authentication and logout.
+ *
+ * @package App\Controller
+ */
 class SecurityController extends AbstractController
 {
     private $fileCleanupService;
 
+    /**
+     * SecurityController constructor.
+     *
+     * @param FileCleanupService $fileCleanupService
+     */
     public function __construct(FileCleanupService $fileCleanupService)
     {
         $this->fileCleanupService = $fileCleanupService;
     }
 
+    /**
+     * Render the login page and handle authentication errors.
+     *
+     * @param AuthenticationUtils $authenticationUtils
+     * @return Response
+     */
     #[Route('/login', name: 'app_login')]
     public function login(AuthenticationUtils $authenticationUtils): Response
     {
@@ -35,6 +51,12 @@ class SecurityController extends AbstractController
         ]);
     }
 
+    /**
+     * Log out the user, clean up files, and clear cookies.
+     *
+     * @param Request $request
+     * @return Response
+     */
     #[Route('/logout', name: 'app_logout')]
     public function logout(Request $request): Response
     {

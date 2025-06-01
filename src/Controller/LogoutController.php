@@ -11,6 +11,11 @@ use App\Service\ChatlogService;
 use Symfony\Component\Cache\Adapter\FilesystemAdapter;
 use Symfony\Component\HttpFoundation\Session\SessionInterface;
 
+/**
+ * Controller for logout confirmation and post-logout cleanup.
+ *
+ * @package App\Controller
+ */
 class LogoutController extends AbstractController
 {
     private Security $security;
@@ -18,6 +23,13 @@ class LogoutController extends AbstractController
     private Filesystem $filesystem;
     private SessionInterface $session;
 
+    /**
+     * LogoutController constructor.
+     *
+     * @param Security $security
+     * @param ChatlogService $chatlogService
+     * @param SessionInterface $session
+     */
     public function __construct(
         Security $security, 
         ChatlogService $chatlogService,
@@ -29,12 +41,22 @@ class LogoutController extends AbstractController
         $this->session = $session;
     }
 
+    /**
+     * Render the logout confirmation page.
+     *
+     * @return Response
+     */
     #[Route('/logout/confirm', name: 'app_logout_confirm')]
     public function confirm(): Response
     {
         return $this->render('logout/confirm.html.twig');
     }
 
+    /**
+     * Handle post-logout cleanup and render the logged out page.
+     *
+     * @return Response
+     */
     #[Route('/logged-out', name: 'app_logout_logged_out')]
     public function loggedOut(): Response
     {

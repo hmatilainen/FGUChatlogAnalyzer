@@ -8,6 +8,11 @@ use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
+/**
+ * User entity for authentication and authorization.
+ *
+ * @package App\Entity
+ */
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
@@ -24,27 +29,53 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column]
     private ?string $password = null;
 
+    /**
+     * Get the user ID.
+     *
+     * @return int|null
+     */
     public function getId(): ?int
     {
         return $this->id;
     }
 
+    /**
+     * Get the username.
+     *
+     * @return string|null
+     */
     public function getUsername(): ?string
     {
         return $this->username;
     }
 
+    /**
+     * Set the username.
+     *
+     * @param string $username
+     * @return static
+     */
     public function setUsername(string $username): static
     {
         $this->username = $username;
         return $this;
     }
 
+    /**
+     * Get the unique user identifier (for Symfony security).
+     *
+     * @return string
+     */
     public function getUserIdentifier(): string
     {
         return (string) $this->username;
     }
 
+    /**
+     * Get the user roles.
+     *
+     * @return array
+     */
     public function getRoles(): array
     {
         $roles = $this->roles;
