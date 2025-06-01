@@ -337,17 +337,49 @@ class ChatlogAnalyzer
             return;
         }
 
-        // Extract character name - handle both single and double hash in color codes
-        if (preg_match('/<font color="#{1,2}[0-9A-Fa-f]{6}">([^:]+):/', $line, $matches)) {
-            $character = trim($matches[1]);
-        } else {
+        $character = $this->extractCharacterName($line);
+        if ($character === null) {
             $this->debug[] = "Skipped roll line (no character match): " . trim($line);
             $this->skippedRolls[] = trim($line);
             return;
         }
 
-        // Extract roll value and dice information
-        // 1. Standard numeric modifier (positive or negative)
+        $rollData = $this->extractRollData($line);
+        if ($rollData === null) {
+            $this->debug[] = "Skipped roll line (no roll extraction match): " . trim($line);
+            $this->skippedRolls[] = trim($line);
+            return;
+        }
+
+        $this->initializeCharacterIfNeeded($character, $rollData['diceType']);
+        $this->updateSessionAndCharacterStats($character, $rollData);
+        $this->handleAdvantageDropped($character, $line);
+        $this->extractAndRecordRollTypeAndSkill($character, $line);
+    }
+
+    /**
+     * Extract the character name from a roll line.
+     *
+     * @param string $line
+     * @return string|null Character name or null if not found
+     */
+    private function extractCharacterName(string $line): ?string
+    {
+        if (preg_match('/<font color="#{1,2}[0-9A-Fa-f]{6}">([^:]+):/', $line, $matches)) {
+            return trim($matches[1]);
+        }
+        return null;
+    }
+
+    /**
+     * Extract roll data (dice, value, bonus, etc) from a roll line.
+     *
+     * @param string $line
+     * @return array|null Array with keys: numDice, diceType, bonus, totalValue, actualRoll; or null if not matched
+     */
+    private function extractRollData(string $line): ?array
+    {
+        // Standard numeric modifier
         if (preg_match('/\[(?:r?(\d+))?d(\d+)(?:([+\-])(\d+))?(?:\+d\d+)?(?:\+\d+)? = (\d+)\]/', $line, $matches)) {
             $numDice = (int)($matches[1] ?? 1);
             $diceType = (int)$matches[2];
@@ -361,9 +393,10 @@ class ChatlogAnalyzer
                 $actualRoll = $totalValue - $bonusValue;
                 $bonus = $bonusValue;
             }
+            return compact('numDice', 'diceType', 'bonus', 'totalValue', 'actualRoll');
         }
-        // 2. Proficiency bonus modifier (e.g., +p4 or -p4)
-        else if (preg_match('/\[(?:r?(\d+))?d(\d+)([+\-])p(\d+)(?:\+d\d+)?(?:\+\d+)? = (\d+)\]/', $line, $matches)) {
+        // Proficiency bonus modifier
+        if (preg_match('/\[(?:r?(\d+))?d(\d+)([+\-])p(\d+)(?:\+d\d+)?(?:\+\d+)? = (\d+)\]/', $line, $matches)) {
             $numDice = (int)($matches[1] ?? 1);
             $diceType = (int)$matches[2];
             $sign = $matches[3];
@@ -376,20 +409,29 @@ class ChatlogAnalyzer
                 $actualRoll = $totalValue - $profValue;
                 $bonus = $profValue;
             }
-        } else if (preg_match('/\[(\d+)?g(\d+)(?:[+\-][^\]=]+)* = (\d+)\]/', $line, $matches)) {
-            // Grouped dice: [g20+... = ...] or [1g20+... = ...]
+            return compact('numDice', 'diceType', 'bonus', 'totalValue', 'actualRoll');
+        }
+        // Grouped dice
+        if (preg_match('/\[(\d+)?g(\d+)(?:[+\-][^\]=]+)* = (\d+)\]/', $line, $matches)) {
             $numDice = (int)($matches[1] ?? 1);
             $diceType = (int)$matches[2];
-            $bonus = 0; // Not extracting bonus for grouped dice, can be improved
+            $bonus = 0;
             $totalValue = (int)$matches[3];
             $actualRoll = $totalValue;
-        } else {
-            $this->debug[] = "Skipped roll line (no roll extraction match): " . trim($line);
-            $this->skippedRolls[] = trim($line);
-            return;
+            return compact('numDice', 'diceType', 'bonus', 'totalValue', 'actualRoll');
         }
+        return null;
+    }
 
-        // Initialize character data if not exists
+    /**
+     * Initialize character data in the session if not already present.
+     *
+     * @param string $character
+     * @param int $diceType
+     * @return void
+     */
+    private function initializeCharacterIfNeeded(string $character, int $diceType): void
+    {
         if (!isset($this->currentSession['characters'][$character])) {
             $this->currentSession['characters'][$character] = [
                 'rolls' => 0,
@@ -404,19 +446,6 @@ class ChatlogAnalyzer
                 ]
             ];
         }
-
-        // Update session totals
-        $this->currentSession['total_rolls']++;
-        $this->currentSession['total_value'] += $totalValue;
-
-        // Update character totals
-        $this->currentSession['characters'][$character]['rolls']++;
-        $this->currentSession['characters'][$character]['total_value'] += $totalValue;
-        $this->currentSession['characters'][$character]['average'] = 
-            round($this->currentSession['characters'][$character]['total_value'] / 
-                  $this->currentSession['characters'][$character]['rolls'], 2);
-
-        // Update dice statistics
         $diceKey = "d{$diceType}";
         if (!isset($this->currentSession['characters'][$character]['dice_stats']['dice_types'][$diceKey])) {
             $this->currentSession['characters'][$character]['dice_stats']['dice_types'][$diceKey] = [
@@ -427,15 +456,36 @@ class ChatlogAnalyzer
                 'dice_type' => $diceType
             ];
         }
+    }
 
+    /**
+     * Update session and character stats for a roll.
+     *
+     * @param string $character
+     * @param array $rollData
+     * @return void
+     */
+    private function updateSessionAndCharacterStats(string $character, array $rollData): void
+    {
+        extract($rollData);
+        // Update session totals
+        $this->currentSession['total_rolls']++;
+        $this->currentSession['total_value'] += $totalValue;
+        // Update character totals
+        $this->currentSession['characters'][$character]['rolls']++;
+        $this->currentSession['characters'][$character]['total_value'] += $totalValue;
+        $this->currentSession['characters'][$character]['average'] =
+            round($this->currentSession['characters'][$character]['total_value'] /
+                $this->currentSession['characters'][$character]['rolls'], 2);
+        // Update dice statistics
+        $diceKey = "d{$diceType}";
         $diceStats = &$this->currentSession['characters'][$character]['dice_stats']['dice_types'][$diceKey];
         $diceStats['times_rolled'] += $numDice;
         $diceStats['total_rolls']++;
         $diceStats['total_value'] += $actualRoll;
-        $diceStats['average'] = $diceStats['times_rolled'] > 0 
+        $diceStats['average'] = $diceStats['times_rolled'] > 0
             ? round($diceStats['total_value'] / $diceStats['times_rolled'], 2)
             : 0;
-
         // Track natural ones and twenties for d20
         if ($diceType === 20) {
             if ($actualRoll === 1) {
@@ -444,16 +494,25 @@ class ChatlogAnalyzer
                 $this->currentSession['characters'][$character]['dice_stats']['natural_twenties']++;
             }
         }
+    }
 
-        // If [ADV] and [DROPPED X] are present, count the dropped value as a d20 roll
+    /**
+     * Handle [ADV] and [DROPPED X] logic for advantage rolls.
+     *
+     * @param string $character
+     * @param string $line
+     * @return void
+     */
+    private function handleAdvantageDropped(string $character, string $line): void
+    {
         if (strpos($line, '[ADV]') !== false && preg_match('/\[DROPPED (\d+)\]/', $line, $dropMatch)) {
             $droppedValue = (int)$dropMatch[1];
             // Count the dropped d20 roll for the same character
             $this->currentSession['characters'][$character]['rolls']++;
             $this->currentSession['characters'][$character]['total_value'] += $droppedValue;
-            $this->currentSession['characters'][$character]['average'] = 
-                round($this->currentSession['characters'][$character]['total_value'] / 
-                      $this->currentSession['characters'][$character]['rolls'], 2);
+            $this->currentSession['characters'][$character]['average'] =
+                round($this->currentSession['characters'][$character]['total_value'] /
+                    $this->currentSession['characters'][$character]['rolls'], 2);
             // Update d20 stats for dropped value
             $d20Key = 'd20';
             if (!isset($this->currentSession['characters'][$character]['dice_stats']['dice_types'][$d20Key])) {
@@ -469,7 +528,7 @@ class ChatlogAnalyzer
             $d20Stats['times_rolled']++;
             $d20Stats['total_rolls']++;
             $d20Stats['total_value'] += $droppedValue;
-            $d20Stats['average'] = $d20Stats['times_rolled'] > 0 
+            $d20Stats['average'] = $d20Stats['times_rolled'] > 0
                 ? round($d20Stats['total_value'] / $d20Stats['times_rolled'], 2)
                 : 0;
             // Track natural ones and twenties for d20
@@ -479,24 +538,29 @@ class ChatlogAnalyzer
                 $this->currentSession['characters'][$character]['dice_stats']['natural_twenties']++;
             }
         }
+    }
 
-        // Extract roll type and skill if present
+    /**
+     * Extract and record roll type and skill from a roll line.
+     *
+     * @param string $character
+     * @param string $line
+     * @return void
+     */
+    private function extractAndRecordRollTypeAndSkill(string $character, string $line): void
+    {
         if (preg_match('/\[([A-Z]+)(?:\s+\([^)]+\))?(?:\s+([^\]]+))?\]/', $line, $matches)) {
             $rollType = $matches[1];
-            $this->currentSession['characters'][$character]['roll_types'][$rollType] = 
+            $this->currentSession['characters'][$character]['roll_types'][$rollType] =
                 ($this->currentSession['characters'][$character]['roll_types'][$rollType] ?? 0) + 1;
-
-            // Special handling for skill checks - simplified to just find [SKILL] and skill name
+            // Special handling for skill checks
             if (preg_match('/\[SKILL\]\s+([^[]+?)(?:\s+\[[^\]]+\])*(?:<\/font>)?\s*\[[^\]]+\]/', $line, $skillMatches)) {
                 $skill = trim($skillMatches[1]);
-                // Remove any HTML tags from the skill name
                 $skill = strip_tags($skill);
-                // Clean up any remaining whitespace
                 $skill = preg_replace('/\s+/', ' ', $skill);
                 $skill = trim($skill);
-                
                 if (!empty($skill)) {
-                    $this->currentSession['characters'][$character]['skills'][$skill] = 
+                    $this->currentSession['characters'][$character]['skills'][$skill] =
                         ($this->currentSession['characters'][$character]['skills'][$skill] ?? 0) + 1;
                     $this->debug[] = "Found skill check: {$skill} for character: {$character} (Current session total: {$this->currentSession['characters'][$character]['skills'][$skill]})";
                 }
