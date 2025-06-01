@@ -372,8 +372,19 @@ class ChatlogController extends AbstractController
             return $dateB <=> $dateA;
         });
 
+        // Deduplicate sessions by date and time (keep first occurrence)
+        $uniqueSessions = [];
+        $seen = [];
+        foreach ($allSessions as $session) {
+            $key = $session['date'] . '|' . $session['time'];
+            if (!isset($seen[$key])) {
+                $uniqueSessions[] = $session;
+                $seen[$key] = true;
+            }
+        }
+
         return $this->render('chatlog/sessions.html.twig', [
-            'sessions' => $allSessions
+            'sessions' => $uniqueSessions
         ]);
     }
 } 
