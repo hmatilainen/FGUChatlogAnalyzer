@@ -2,6 +2,14 @@
 
 namespace App\Service;
 
+/**
+ * Analyzes Fantasy Grounds chat logs for D&D dice rolls, sessions, and character statistics.
+ *
+ * Aggregates roll data, detects sessions, and provides detailed statistics for use in analysis views.
+ * Tracks skipped/unmatched roll lines for future improvements.
+ *
+ * @package App\Service
+ */
 class ChatlogAnalyzer
 {
     private array $sessions = [];
@@ -9,6 +17,13 @@ class ChatlogAnalyzer
     private array $debug = [];
     private array $skippedRolls = [];
 
+    /**
+     * Analyze a chatlog file and return aggregated analysis data.
+     *
+     * @param string $filepath Path to the chatlog file
+     * @return array Analysis result including totals, sessions, and skipped rolls
+     * @throws \RuntimeException If file cannot be read
+     */
     public function analyze(string $filepath): array
     {
         $content = file_get_contents($filepath);
@@ -27,6 +42,11 @@ class ChatlogAnalyzer
         return $this->buildAnalysis();
     }
 
+    /**
+     * Reset the analyzer state for a new analysis run.
+     *
+     * @return void
+     */
     private function resetState(): void
     {
         $this->sessions = [];
@@ -36,11 +56,23 @@ class ChatlogAnalyzer
         $this->skippedRolls = [];
     }
 
+    /**
+     * Analyze a single line (public for testing).
+     *
+     * @param string $line
+     * @return bool True if the line was handled (session or roll), false otherwise
+     */
     public function analyzeLinePublic(string $line): bool
     {
         return $this->analyzeLine($line);
     }
 
+    /**
+     * Analyze a single line (internal).
+     *
+     * @param string $line
+     * @return bool True if the line was handled (session or roll), false otherwise
+     */
     private function analyzeLine(string $line): bool
     {
         if ($session = $this->detectSessionStart($line)) {
@@ -57,6 +89,12 @@ class ChatlogAnalyzer
         return false;
     }
 
+    /**
+     * Detect if a line starts a new session.
+     *
+     * @param string $line
+     * @return array|null [date, time] if session start, null otherwise
+     */
     private function detectSessionStart(string $line): ?array
     {
         if (preg_match('/Session started at (\d{4}-\d{2}-\d{2}) \/ (\d{2}:\d{2})/', $line, $matches) ||
@@ -75,6 +113,12 @@ class ChatlogAnalyzer
         return null;
     }
 
+    /**
+     * Determine if a line is a roll line.
+     *
+     * @param string $line
+     * @return bool
+     */
     private function isRollLine(string $line): bool
     {
         // Match standard dice notation
@@ -88,25 +132,41 @@ class ChatlogAnalyzer
         return false;
     }
 
+    /**
+     * Build the aggregated analysis result from parsed sessions.
+     *
+     * @return array Analysis result
+     */
     public function buildAnalysis(): array
     {
-        $analysis = [
+        $characterTotals = $this->aggregateCharacterTotals($this->sessions);
+        $totalRolls = $this->aggregateTotalRolls($this->sessions);
+        $totalValue = $this->aggregateTotalValue($this->sessions);
+        $average = $totalRolls > 0 ? round($totalValue / $totalRolls, 2) : 0;
+        $this->logFinalSkillTotals($characterTotals);
+        $this->debug[] = "Analysis complete. Total rolls: {$totalRolls}, Average: {$average}, Characters: " . count($characterTotals);
+        return [
             'totals' => [
-                'rolls' => 0,
-                'average' => 0,
-                'characters' => []
+                'rolls' => $totalRolls,
+                'average' => $average,
+                'characters' => $characterTotals
             ],
-            'sessions' => [],
+            'sessions' => $this->sessions,
             'debug' => &$this->debug,
             'skipped_rolls' => $this->skippedRolls
         ];
+    }
 
-        $totalRolls = 0;
-        $totalValue = 0;
+    /**
+     * Aggregate character totals across all sessions.
+     *
+     * @param array $sessions
+     * @return array
+     */
+    private function aggregateCharacterTotals(array $sessions): array
+    {
         $characterTotals = [];
-
-        foreach ($this->sessions as $session) {
-            $totalRolls += $session['total_rolls'];
+        foreach ($sessions as $session) {
             foreach ($session['characters'] as $charName => $charData) {
                 if (!isset($characterTotals[$charName])) {
                     $characterTotals[$charName] = [
@@ -124,52 +184,110 @@ class ChatlogAnalyzer
                 }
                 $characterTotals[$charName]['rolls'] += $charData['rolls'];
                 $characterTotals[$charName]['total_value'] += $charData['total_value'];
-                $characterTotals[$charName]['average'] = 
+                $characterTotals[$charName]['average'] =
                     round($characterTotals[$charName]['total_value'] / $characterTotals[$charName]['rolls'], 2);
                 foreach ($charData['roll_types'] as $type => $count) {
-                    $characterTotals[$charName]['roll_types'][$type] = 
+                    $characterTotals[$charName]['roll_types'][$type] =
                         ($characterTotals[$charName]['roll_types'][$type] ?? 0) + $count;
                 }
                 foreach ($charData['skills'] as $skill => $count) {
-                    $characterTotals[$charName]['skills'][$skill] = 
+                    $characterTotals[$charName]['skills'][$skill] =
                         ($characterTotals[$charName]['skills'][$skill] ?? 0) + $count;
                 }
-                foreach ($charData['dice_stats']['dice_types'] as $diceType => $diceData) {
-                    $diceKey = "d{$diceType}";
-                    if (!isset($characterTotals[$charName]['dice_stats']['dice_types'][$diceKey])) {
-                        $characterTotals[$charName]['dice_stats']['dice_types'][$diceKey] = [
-                            'total_rolls' => 0,
-                            'total_value' => 0,
-                            'average' => 0,
-                            'times_rolled' => 0,
-                            'dice_type' => $diceType
-                        ];
-                    }
-                    $diceStats = &$characterTotals[$charName]['dice_stats']['dice_types'][$diceKey];
-                    $diceStats['times_rolled'] += $diceData['times_rolled'];
-                    $diceStats['total_rolls'] += $diceData['total_rolls'];
-                    $diceStats['total_value'] += $diceData['total_value'];
-                    $diceStats['average'] = $diceStats['times_rolled'] > 0 
-                        ? round($diceStats['total_value'] / $diceStats['times_rolled'], 2)
-                        : 0;
-                }
-                $characterTotals[$charName]['dice_stats']['natural_ones'] += $charData['dice_stats']['natural_ones'];
-                $characterTotals[$charName]['dice_stats']['natural_twenties'] += $charData['dice_stats']['natural_twenties'];
+                $characterTotals[$charName]['dice_stats'] = $this->aggregateDiceStats(
+                    $characterTotals[$charName]['dice_stats'],
+                    $charData['dice_stats']
+                );
             }
         }
+        return $characterTotals;
+    }
+
+    /**
+     * Aggregate dice statistics for a character.
+     *
+     * @param array $existing
+     * @param array $new
+     * @return array
+     */
+    private function aggregateDiceStats(array $existing, array $new): array
+    {
+        foreach ($new['dice_types'] as $diceType => $diceData) {
+            $diceKey = "d{$diceType}";
+            if (!isset($existing['dice_types'][$diceKey])) {
+                $existing['dice_types'][$diceKey] = [
+                    'total_rolls' => 0,
+                    'total_value' => 0,
+                    'average' => 0,
+                    'times_rolled' => 0,
+                    'dice_type' => $diceType
+                ];
+            }
+            $diceStats = &$existing['dice_types'][$diceKey];
+            $diceStats['times_rolled'] += $diceData['times_rolled'];
+            $diceStats['total_rolls'] += $diceData['total_rolls'];
+            $diceStats['total_value'] += $diceData['total_value'];
+            $diceStats['average'] = $diceStats['times_rolled'] > 0
+                ? round($diceStats['total_value'] / $diceStats['times_rolled'], 2)
+                : 0;
+        }
+        $existing['natural_ones'] += $new['natural_ones'];
+        $existing['natural_twenties'] += $new['natural_twenties'];
+        return $existing;
+    }
+
+    /**
+     * Aggregate total rolls across all sessions.
+     *
+     * @param array $sessions
+     * @return int
+     */
+    private function aggregateTotalRolls(array $sessions): int
+    {
+        $total = 0;
+        foreach ($sessions as $session) {
+            $total += $session['total_rolls'] ?? 0;
+        }
+        return $total;
+    }
+
+    /**
+     * Aggregate total value across all sessions.
+     *
+     * @param array $sessions
+     * @return int
+     */
+    private function aggregateTotalValue(array $sessions): int
+    {
+        $total = 0;
+        foreach ($sessions as $session) {
+            $total += $session['total_value'] ?? 0;
+        }
+        return $total;
+    }
+
+    /**
+     * Log final skill totals for debugging.
+     *
+     * @param array $characterTotals
+     * @return void
+     */
+    private function logFinalSkillTotals(array $characterTotals): void
+    {
         foreach ($characterTotals as $charName => $charData) {
             foreach ($charData['skills'] as $skill => $count) {
                 $this->debug[] = "Final skill total: {$skill} for character: {$charName} (Total across all sessions: {$count})";
             }
         }
-        $analysis['totals']['rolls'] = $totalRolls;
-        $analysis['totals']['average'] = $totalRolls > 0 ? round($totalValue / $totalRolls, 2) : 0;
-        $analysis['totals']['characters'] = $characterTotals;
-        $analysis['sessions'] = $this->sessions;
-        $this->debug[] = "Analysis complete. Total rolls: {$totalRolls}, Average: {$analysis['totals']['average']}, Characters: " . count($characterTotals);
-        return $analysis;
     }
 
+    /**
+     * Start a new session, finalizing the previous one if needed.
+     *
+     * @param string $date
+     * @param string $time
+     * @return void
+     */
     private function startNewSession(string $date, string $time): void
     {
         if ($this->currentSession) {
@@ -186,6 +304,11 @@ class ChatlogAnalyzer
         $this->debug[] = "Started new session: {$date} at {$time}";
     }
 
+    /**
+     * Finalize the current session and add it to the sessions list.
+     *
+     * @return void
+     */
     public function finalizeSession(): void
     {
         if (!$this->currentSession) {
@@ -202,6 +325,12 @@ class ChatlogAnalyzer
         $this->currentSession = null;
     }
 
+    /**
+     * Process a roll line and update session/character stats.
+     *
+     * @param string $line
+     * @return void
+     */
     private function processRoll(string $line): void
     {
         if (!$this->currentSession) {
