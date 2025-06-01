@@ -497,7 +497,7 @@ class ChatlogAnalyzer
     }
 
     /**
-     * Handle [ADV] and [DROPPED X] logic for advantage rolls.
+     * Handle [ADV] and [DIS] logic for advantage rolls.
      *
      * @param string $character
      * @param string $line
@@ -505,7 +505,7 @@ class ChatlogAnalyzer
      */
     private function handleAdvantageDropped(string $character, string $line): void
     {
-        if (strpos($line, '[ADV]') !== false && preg_match('/\[DROPPED (\d+)\]/', $line, $dropMatch)) {
+        if ((strpos($line, '[ADV]') !== false || strpos($line, '[DIS]') !== false) && preg_match('/\[DROPPED (\d+)\]/', $line, $dropMatch)) {
             $droppedValue = (int)$dropMatch[1];
             // Count the dropped d20 roll for the same character
             $this->currentSession['characters'][$character]['rolls']++;
