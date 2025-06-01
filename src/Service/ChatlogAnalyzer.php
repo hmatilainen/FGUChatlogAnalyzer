@@ -566,5 +566,12 @@ class ChatlogAnalyzer
                 }
             }
         }
+        // Count [ADV] and [DIS] tags anywhere in the line
+        foreach (['ADV', 'DIS'] as $special) {
+            if (strpos($line, "[$special]") !== false) {
+                $this->currentSession['characters'][$character]['roll_types'][$special] =
+                    ($this->currentSession['characters'][$character]['roll_types'][$special] ?? 0) + 1;
+            }
+        }
     }
 } 
