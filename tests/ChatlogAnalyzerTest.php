@@ -114,54 +114,22 @@ Session started at 2024-06-01 / 18:00
 EOT;
         $lines = explode("\n", $chatlog);
         $analyzer = new ChatlogAnalyzer();
-        $unmatchedLines = [];
         foreach ($lines as $line) {
-            if (!$analyzer->analyzeLinePublic($line)) {
-                $unmatchedLines[] = $line;
-            }
+            $analyzer->analyzeLinePublic($line);
         }
         // Finalize the last session so all rolls are counted
         $analyzer->finalizeSession();
-        $result = $analyzer->buildAnalysis();var_dump($result['debug']);
-        if (!empty($unmatchedLines)) {
-            error_log("--- Unmatched lines ---");
-            foreach ($unmatchedLines as $line) {
-                error_log($line);
-            }
-            error_log("--- End unmatched lines ---");
-        }
-        
+        $result = $analyzer->buildAnalysis();
+
         // Count the number of detected rolls (should match the number of roll lines)
         $expectedRolls = 63; // Updated to match the new total number of roll lines
-        
-        // Output roll line count, detected count, and missed lines to STDERR for visibility
-        $rollLines = array_filter($lines, function($line) {
-            // Use the same logic as isRollLine in the analyzer
-            if (preg_match('/\[(?:r?\d+)?d\d+(?:[+\-][^\]=]+)* = \d+\]/', $line)) {
-                return true;
-            }
-            if (preg_match('/\[(?:\d+)?g\d+(?:[+\-][^\]=]+)* = \d+\]/', $line)) {
-                return true;
-            }
-            return false;
-        });
 
-        // Extract detected roll lines from $result['debug']
-        $detectedRollLines = array_map(
-            fn($entry) => preg_replace('/^Found roll line: /', '', $entry),
-            array_filter($result['debug'], fn($entry) => str_starts_with($entry, 'Found roll line:'))
-        );
-        
-        // Print lines that are matched by isRollLine but not processed as rolls
-        $notProcessed = array_diff($rollLines, $detectedRollLines);
-        error_log("--- Lines matched by isRollLine but not processed as rolls ---");
-        foreach ($notProcessed as $line) {
-            error_log($line);
-        }
-        error_log("--- End lines not processed as rolls ---");
-        
+        // $result['skipped_rolls'] holds roll lines that were matched by isRollLine()
+        // but could not be fully processed (no character or roll data match) - useful
+        // for diagnosing why $result['totals']['rolls'] might be lower than expected.
+        $notProcessed = $result['skipped_rolls'];
+
         $this->assertEquals($expectedRolls, $result['totals']['rolls'], 'Should detect all complex roll patterns');
-        echo "Kekkonen2";
         // Check that some key characters are present
         $expectedCharacters = [
             'Chelicerae', 'Shalresh Sszar, Yuan-ti Malison', 'Lambert Ulbrinter', 'Myrbec the Mighty',
@@ -189,6 +157,5 @@ EOT;
         // Cain: [SKILL] Persuasion [PROF x2] [ADV] [DROPPED 3] [1g20+5 = 25]
         $this->assertGreaterThanOrEqual(4, $cain['dice_stats']['dice_types']['d20']['times_rolled'], 'Cain should have at least 4 d20 rolls (main + dropped for three [ADV] lines)');
         // --- End new assertions ---
-        echo "Are we here?\n";
     }
 } 

@@ -14,7 +14,6 @@ class ChatlogAnalyzer
 {
     private array $sessions = [];
     private ?array $currentSession = null;
-    private array $debug = [];
     private array $skippedRolls = [];
 
     /**
@@ -51,8 +50,6 @@ class ChatlogAnalyzer
     {
         $this->sessions = [];
         $this->currentSession = null;
-        $this->debug = [];
-        $this->debug[] = "Starting analysis...";
         $this->skippedRolls = [];
     }
 
@@ -77,12 +74,10 @@ class ChatlogAnalyzer
     {
         if ($session = $this->detectSessionStart($line)) {
             $this->startNewSession($session['date'], $session['time']);
-            $this->debug[] = "Found session start: {$session['date']} at {$session['time']}";
             return true;
         }
 
         if ($this->isRollLine($line)) {
-            $this->debug[] = "Found roll line: " . trim($line);
             $this->processRoll($line);
             return true;
         }
@@ -143,8 +138,6 @@ class ChatlogAnalyzer
         $totalRolls = $this->aggregateTotalRolls($this->sessions);
         $totalValue = $this->aggregateTotalValue($this->sessions);
         $average = $totalRolls > 0 ? round($totalValue / $totalRolls, 2) : 0;
-        $this->logFinalSkillTotals($characterTotals);
-        $this->debug[] = "Analysis complete. Total rolls: {$totalRolls}, Average: {$average}, Characters: " . count($characterTotals);
         return [
             'totals' => [
                 'rolls' => $totalRolls,
@@ -152,7 +145,6 @@ class ChatlogAnalyzer
                 'characters' => $characterTotals
             ],
             'sessions' => $this->sessions,
-            'debug' => &$this->debug,
             'skipped_rolls' => $this->skippedRolls
         ];
     }
@@ -267,21 +259,6 @@ class ChatlogAnalyzer
     }
 
     /**
-     * Log final skill totals for debugging.
-     *
-     * @param array $characterTotals
-     * @return void
-     */
-    private function logFinalSkillTotals(array $characterTotals): void
-    {
-        foreach ($characterTotals as $charName => $charData) {
-            foreach ($charData['skills'] as $skill => $count) {
-                $this->debug[] = "Final skill total: {$skill} for character: {$charName} (Total across all sessions: {$count})";
-            }
-        }
-    }
-
-    /**
      * Start a new session, finalizing the previous one if needed.
      *
      * @param string $date
@@ -301,7 +278,6 @@ class ChatlogAnalyzer
             'total_value' => 0,
             'characters' => []
         ];
-        $this->debug[] = "Started new session: {$date} at {$time}";
     }
 
     /**
@@ -320,8 +296,7 @@ class ChatlogAnalyzer
             : 0;
 
         $this->sessions[] = $this->currentSession;
-        $this->debug[] = "Finalized session: {$this->currentSession['date']} at {$this->currentSession['time']} - Total rolls: {$this->currentSession['total_rolls']}, Average: {$this->currentSession['average']}";
-        
+
         $this->currentSession = null;
     }
 
@@ -339,14 +314,12 @@ class ChatlogAnalyzer
 
         $character = $this->extractCharacterName($line);
         if ($character === null) {
-            $this->debug[] = "Skipped roll line (no character match): " . trim($line);
             $this->skippedRolls[] = trim($line);
             return;
         }
 
         $rollData = $this->extractRollData($line);
         if ($rollData === null) {
-            $this->debug[] = "Skipped roll line (no roll extraction match): " . trim($line);
             $this->skippedRolls[] = trim($line);
             return;
         }
@@ -562,7 +535,6 @@ class ChatlogAnalyzer
                 if (!empty($skill)) {
                     $this->currentSession['characters'][$character]['skills'][$skill] =
                         ($this->currentSession['characters'][$character]['skills'][$skill] ?? 0) + 1;
-                    $this->debug[] = "Found skill check: {$skill} for character: {$character} (Current session total: {$this->currentSession['characters'][$character]['skills'][$skill]})";
                 }
             }
         }

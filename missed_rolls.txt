@@ -1,1 +1,0 @@
-Missed rolls file write test successful.\n

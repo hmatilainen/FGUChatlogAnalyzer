@@ -55,19 +55,14 @@ class CookieAuthenticator extends AbstractAuthenticator implements EventSubscrib
     public function authenticate(Request $request): Passport
     {
         $userId = $request->cookies->get(self::COOKIE_NAME);
-        
-        // Debug logging
-        error_log("Cookie user ID: " . ($userId ?? 'null'));
-        
+
         if (!$userId) {
             $userId = bin2hex(random_bytes(16));
             $this->userIdToSet = $userId;
-            error_log("Generated new user ID: " . $userId);
         }
 
         return new SelfValidatingPassport(
             new UserBadge($userId, function($userIdentifier) {
-                error_log("Creating user with ID: " . $userIdentifier);
                 return new InMemoryUser($userIdentifier, '', ['ROLE_USER']);
             })
         );
