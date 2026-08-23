@@ -198,4 +198,41 @@ EOT;
             );
         }
     }
+
+    public function testExtractRollDataHandlesMultiDigitDiceCountInBonus()
+    {
+        // Regression test: the bonus regex used to backtrack incorrectly on a
+        // multi-digit dice count in a non-leading term ("+10d6"), misreading
+        // it as a flat "+1" bonus. Correct bonus here is 5 (the trailing flat
+        // modifier only), giving actualRoll = 50 - 5 = 45, not 50 - 6 = 44.
+        $line = '<font color="#FF0000">MultiDigit: [DAMAGE] [1d8+10d6+5 = 50]</font>';
+
+        $analyzer = new ChatlogAnalyzer();
+        $analyzer->analyzeLinePublic('Session started at 2024-06-01 / 18:00');
+        $this->assertTrue($analyzer->analyzeLinePublic($line));
+        $analyzer->finalizeSession();
+        $result = $analyzer->buildAnalysis();
+
+        $this->assertArrayHasKey('MultiDigit', $result['totals']['characters']);
+        $character = $result['totals']['characters']['MultiDigit'];
+        $this->assertEquals(50, $character['total_value']);
+        $this->assertArrayHasKey('d8', $character['dice_stats']['dice_types']);
+        $this->assertEquals(45, $character['dice_stats']['dice_types']['d8']['total_value']);
+    }
+
+    public function testExtractRollDataHandlesNegativeFlatBonus()
+    {
+        $line = '<font color="#FF0000">NegBonus: [CHECK] Dexterity</font> [1d20-2 = 5]';
+
+        $analyzer = new ChatlogAnalyzer();
+        $analyzer->analyzeLinePublic('Session started at 2024-06-01 / 18:00');
+        $this->assertTrue($analyzer->analyzeLinePublic($line));
+        $analyzer->finalizeSession();
+        $result = $analyzer->buildAnalysis();
+
+        $this->assertArrayHasKey('NegBonus', $result['totals']['characters']);
+        $character = $result['totals']['characters']['NegBonus'];
+        $this->assertEquals(5, $character['total_value']);
+        $this->assertEquals(7, $character['dice_stats']['dice_types']['d20']['total_value']);
+    }
 } 

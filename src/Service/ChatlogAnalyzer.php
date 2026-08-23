@@ -357,6 +357,8 @@ class ChatlogAnalyzer
         $termString = $bracketMatch[1];
         $totalValue = (int)$bracketMatch[2];
 
+        // A leading "r" (reroll) prefix, e.g. "r1d20", is simply not matched by
+        // this pattern, so the tokenizer skips it and picks up "1d20" as normal.
         preg_match_all('/([+\-]?)(\d*)([dgp])(\d+)/', $termString, $termMatches, PREG_SET_ORDER);
         if (empty($termMatches)) {
             return null;
@@ -383,7 +385,7 @@ class ChatlogAnalyzer
         }
 
         $bonus = 0;
-        preg_match_all('/([+\-])(\d+)(?![dgp])/', $termString, $bonusMatches, PREG_SET_ORDER);
+        preg_match_all('/([+\-])(\d+)(?![\ddgp])/', $termString, $bonusMatches, PREG_SET_ORDER);
         foreach ($bonusMatches as $bonusMatch) {
             $value = (int)$bonusMatch[2];
             $bonus += $bonusMatch[1] === '-' ? -$value : $value;
