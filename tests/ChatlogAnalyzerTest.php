@@ -148,6 +148,10 @@ EOT;
         $cain = $result['totals']['characters']['Cain'];
         $this->assertArrayHasKey('d20', $cain['dice_stats']['dice_types']);
         $this->assertGreaterThanOrEqual(2, $cain['dice_stats']['dice_types']['d20']['times_rolled'], 'Cain should have at least 2 d20 rolls (main + dropped)');
+        // Chelicerae: [DAMAGE (M)] Bite [CRITICAL] ... [2d10+2g10+6 = 24] (combined dice+bonus notation)
+        $chelicerae = $result['totals']['characters']['Chelicerae'];
+        $this->assertArrayHasKey('d10', $chelicerae['dice_stats']['dice_types']);
+        $this->assertGreaterThanOrEqual(2, $chelicerae['dice_stats']['dice_types']['d10']['times_rolled'], 'Chelicerae should have at least 2 d10 dice rolled from the combined notation line');
         // Rudi: [ATTACK (M)] Dagger [ADV] [DROPPED 6] [1g20+8 = 28]
         $rudi = $result['totals']['characters']['Rudi'];
         $this->assertArrayHasKey('d20', $rudi['dice_stats']['dice_types']);
@@ -157,5 +161,41 @@ EOT;
         // Cain: [SKILL] Persuasion [PROF x2] [ADV] [DROPPED 3] [1g20+5 = 25]
         $this->assertGreaterThanOrEqual(4, $cain['dice_stats']['dice_types']['d20']['times_rolled'], 'Cain should have at least 4 d20 rolls (main + dropped for three [ADV] lines)');
         // --- End new assertions ---
+    }
+
+    public function testExtractRollDataHandlesCombinedDiceNotation()
+    {
+        $cases = [
+            'BaseCritDie' => '<font color="#FF0000">BaseCritDie: [DAMAGE] [1d6+1g6+1 = 9]</font>',
+            'ProficiencyDie' => '<font color="#FF0000">ProficiencyDie: [DAMAGE] [1d8+1p4+3 = 14]</font>',
+            'TwoDiceTypes' => '<font color="#FF0000">TwoDiceTypes: [DAMAGE] [6d6+1d8 = 24]</font>',
+            'TwoDiceTypesWithBonus' => '<font color="#FF0000">TwoDiceTypesWithBonus: [DAMAGE] [1d6+1d8+3 = 13]</font>',
+        ];
+
+        $expectedTotals = [
+            'BaseCritDie' => 9,
+            'ProficiencyDie' => 14,
+            'TwoDiceTypes' => 24,
+            'TwoDiceTypesWithBonus' => 13,
+        ];
+
+        $analyzer = new ChatlogAnalyzer();
+        $analyzer->analyzeLinePublic('Session started at 2024-06-01 / 18:00');
+
+        foreach ($cases as $character => $line) {
+            $this->assertTrue($analyzer->analyzeLinePublic($line), "Line for $character should be detected as a roll");
+        }
+
+        $analyzer->finalizeSession();
+        $result = $analyzer->buildAnalysis();
+
+        foreach ($expectedTotals as $character => $expectedTotal) {
+            $this->assertArrayHasKey($character, $result['totals']['characters'], "Should detect character: $character");
+            $this->assertEquals(
+                $expectedTotal,
+                $result['totals']['characters'][$character]['total_value'],
+                "Total value for $character should match the roll's total"
+            );
+        }
     }
 } 

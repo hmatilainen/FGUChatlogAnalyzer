@@ -204,15 +204,14 @@ class ChatlogAnalyzer
      */
     private function aggregateDiceStats(array $existing, array $new): array
     {
-        foreach ($new['dice_types'] as $diceType => $diceData) {
-            $diceKey = "d{$diceType}";
+        foreach ($new['dice_types'] as $diceKey => $diceData) {
             if (!isset($existing['dice_types'][$diceKey])) {
                 $existing['dice_types'][$diceKey] = [
                     'total_rolls' => 0,
                     'total_value' => 0,
                     'average' => 0,
                     'times_rolled' => 0,
-                    'dice_type' => $diceType
+                    'dice_type' => $diceData['dice_type']
                 ];
             }
             $diceStats = &$existing['dice_types'][$diceKey];
@@ -352,48 +351,47 @@ class ChatlogAnalyzer
      */
     private function extractRollData(string $line): ?array
     {
-        // Standard numeric modifier
-        if (preg_match('/\[(?:r?(\d+))?d(\d+)(?:([+\-])(\d+))?(?:\+d\d+)?(?:\+\d+)? = (\d+)\]/', $line, $matches)) {
-            $numDice = (int)($matches[1] ?? 1);
-            $diceType = (int)$matches[2];
-            $sign = $matches[3] ?? null;
-            $bonusValue = isset($matches[4]) ? (int)$matches[4] : 0;
-            $totalValue = (int)$matches[5];
-            if ($sign === '-') {
-                $actualRoll = $totalValue + $bonusValue;
-                $bonus = -$bonusValue;
-            } else {
-                $actualRoll = $totalValue - $bonusValue;
-                $bonus = $bonusValue;
+        if (!preg_match('/\[([^\]]+) = (\d+)\]/', $line, $bracketMatch)) {
+            return null;
+        }
+        $termString = $bracketMatch[1];
+        $totalValue = (int)$bracketMatch[2];
+
+        preg_match_all('/([+\-]?)(\d*)([dgp])(\d+)/', $termString, $termMatches, PREG_SET_ORDER);
+        if (empty($termMatches)) {
+            return null;
+        }
+
+        $numDice = null;
+        $diceType = null;
+        $firstGroupTerm = null;
+        foreach ($termMatches as $term) {
+            $letter = $term[3];
+            if ($letter === 'd' && $diceType === null) {
+                $numDice = $term[2] === '' ? 1 : (int)$term[2];
+                $diceType = (int)$term[4];
+            } elseif ($letter === 'g' && $firstGroupTerm === null) {
+                $firstGroupTerm = $term;
             }
-            return compact('numDice', 'diceType', 'bonus', 'totalValue', 'actualRoll');
         }
-        // Proficiency bonus modifier
-        if (preg_match('/\[(?:r?(\d+))?d(\d+)([+\-])p(\d+)(?:\+d\d+)?(?:\+\d+)? = (\d+)\]/', $line, $matches)) {
-            $numDice = (int)($matches[1] ?? 1);
-            $diceType = (int)$matches[2];
-            $sign = $matches[3];
-            $profValue = (int)$matches[4];
-            $totalValue = (int)$matches[5];
-            if ($sign === '-') {
-                $actualRoll = $totalValue + $profValue;
-                $bonus = -$profValue;
-            } else {
-                $actualRoll = $totalValue - $profValue;
-                $bonus = $profValue;
+        if ($diceType === null) {
+            if ($firstGroupTerm === null) {
+                return null;
             }
-            return compact('numDice', 'diceType', 'bonus', 'totalValue', 'actualRoll');
+            $numDice = $firstGroupTerm[2] === '' ? 1 : (int)$firstGroupTerm[2];
+            $diceType = (int)$firstGroupTerm[4];
         }
-        // Grouped dice
-        if (preg_match('/\[(\d+)?g(\d+)(?:[+\-][^\]=]+)* = (\d+)\]/', $line, $matches)) {
-            $numDice = (int)($matches[1] ?? 1);
-            $diceType = (int)$matches[2];
-            $bonus = 0;
-            $totalValue = (int)$matches[3];
-            $actualRoll = $totalValue;
-            return compact('numDice', 'diceType', 'bonus', 'totalValue', 'actualRoll');
+
+        $bonus = 0;
+        preg_match_all('/([+\-])(\d+)(?![dgp])/', $termString, $bonusMatches, PREG_SET_ORDER);
+        foreach ($bonusMatches as $bonusMatch) {
+            $value = (int)$bonusMatch[2];
+            $bonus += $bonusMatch[1] === '-' ? -$value : $value;
         }
-        return null;
+
+        $actualRoll = $totalValue - $bonus;
+
+        return compact('numDice', 'diceType', 'bonus', 'totalValue', 'actualRoll');
     }
 
     /**
