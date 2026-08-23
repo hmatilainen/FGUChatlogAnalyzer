@@ -88,6 +88,37 @@ class ChatlogService
     }
 
     /**
+     * Resolve a filename within a base directory, refusing to leave it.
+     *
+     * @param string $baseDir
+     * @param string $filename
+     * @return string|null Absolute resolved path, or null if the filename
+     *                      would escape the base directory or doesn't exist.
+     */
+    public function resolveSafePath(string $baseDir, string $filename): ?string
+    {
+        $filename = basename($filename);
+        $candidate = $baseDir . '/' . $filename;
+
+        if (!file_exists($candidate)) {
+            return null;
+        }
+
+        $realBase = realpath($baseDir);
+        $realCandidate = realpath($candidate);
+
+        if ($realBase === false || $realCandidate === false) {
+            return null;
+        }
+
+        if (!str_starts_with($realCandidate, $realBase . DIRECTORY_SEPARATOR)) {
+            return null;
+        }
+
+        return $realCandidate;
+    }
+
+    /**
      * Get a list of chatlog files for a user.
      *
      * @param string $userId
