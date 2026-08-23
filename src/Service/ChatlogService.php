@@ -119,6 +119,42 @@ class ChatlogService
     }
 
     /**
+     * Locate a chatlog file across the user's own directory, other users'
+     * directories, and the public directory, in that priority order.
+     *
+     * @param string|null $userId
+     * @param string $filename
+     * @return array{path: string, isOwner: bool}|null
+     */
+    public function resolveFilepath(?string $userId, string $filename): ?array
+    {
+        if ($userId !== null) {
+            $path = $this->resolveSafePath($this->getUserDir($userId), $filename);
+            if ($path !== null) {
+                return ['path' => $path, 'isOwner' => true];
+            }
+        }
+
+        $uploadDir = $this->getUploadDir();
+        if (is_dir($uploadDir)) {
+            $dirs = array_diff(scandir($uploadDir), ['.', '..', 'public']);
+            foreach ($dirs as $dir) {
+                $path = $this->resolveSafePath($uploadDir . '/' . $dir, $filename);
+                if ($path !== null) {
+                    return ['path' => $path, 'isOwner' => false];
+                }
+            }
+        }
+
+        $path = $this->resolveSafePath($this->getPublicDir(), $filename);
+        if ($path !== null) {
+            return ['path' => $path, 'isOwner' => false];
+        }
+
+        return null;
+    }
+
+    /**
      * Get a list of chatlog files for a user.
      *
      * @param string $userId

@@ -75,4 +75,105 @@ class ChatlogServiceTest extends TestCase
 
         rmdir($baseDir);
     }
+
+    /**
+     * Build a ChatlogService whose upload dir is a fresh temp directory, so
+     * tests can freely create user/public subdirectories without touching
+     * the real var/uploads tree.
+     *
+     * @return array{0: ChatlogService, 1: string} [$service, $uploadDir]
+     */
+    private function makeServiceWithUploadDir(): array
+    {
+        $projectDir = sys_get_temp_dir() . '/chatlog_test_project_' . uniqid();
+        mkdir($projectDir . '/var/uploads', 0777, true);
+
+        return [new ChatlogService($projectDir), $projectDir . '/var/uploads'];
+    }
+
+    private function removeDir(string $dir): void
+    {
+        if (!is_dir($dir)) {
+            return;
+        }
+        foreach (array_diff(scandir($dir), ['.', '..']) as $entry) {
+            $path = $dir . '/' . $entry;
+            is_dir($path) ? $this->removeDir($path) : unlink($path);
+        }
+        rmdir($dir);
+    }
+
+    public function testResolveFilepathFindsFileInOwnDir()
+    {
+        [$service, $uploadDir] = $this->makeServiceWithUploadDir();
+        mkdir($uploadDir . '/user1');
+        file_put_contents($uploadDir . '/user1/chatlog.html', 'contents');
+
+        $resolved = $service->resolveFilepath('user1', 'chatlog.html');
+
+        $this->assertNotNull($resolved);
+        $this->assertTrue($resolved['isOwner']);
+        $this->assertEquals(realpath($uploadDir . '/user1/chatlog.html'), $resolved['path']);
+
+        $this->removeDir(dirname($uploadDir));
+    }
+
+    public function testResolveFilepathFindsFileInAnotherUsersDir()
+    {
+        [$service, $uploadDir] = $this->makeServiceWithUploadDir();
+        mkdir($uploadDir . '/user1');
+        mkdir($uploadDir . '/user2');
+        file_put_contents($uploadDir . '/user2/chatlog.html', 'contents');
+
+        $resolved = $service->resolveFilepath('user1', 'chatlog.html');
+
+        $this->assertNotNull($resolved);
+        $this->assertFalse($resolved['isOwner']);
+        $this->assertEquals(realpath($uploadDir . '/user2/chatlog.html'), $resolved['path']);
+
+        $this->removeDir(dirname($uploadDir));
+    }
+
+    public function testResolveFilepathFindsFileInPublicDir()
+    {
+        [$service, $uploadDir] = $this->makeServiceWithUploadDir();
+        mkdir($uploadDir . '/user1');
+        mkdir($uploadDir . '/public');
+        file_put_contents($uploadDir . '/public/chatlog.html', 'contents');
+
+        $resolved = $service->resolveFilepath('user1', 'chatlog.html');
+
+        $this->assertNotNull($resolved);
+        $this->assertFalse($resolved['isOwner']);
+        $this->assertEquals(realpath($uploadDir . '/public/chatlog.html'), $resolved['path']);
+
+        $this->removeDir(dirname($uploadDir));
+    }
+
+    public function testResolveFilepathReturnsNullWhenNotFoundAnywhere()
+    {
+        [$service, $uploadDir] = $this->makeServiceWithUploadDir();
+        mkdir($uploadDir . '/user1');
+
+        $resolved = $service->resolveFilepath('user1', 'chatlog.html');
+
+        $this->assertNull($resolved);
+
+        $this->removeDir(dirname($uploadDir));
+    }
+
+    public function testResolveFilepathSkipsOwnDirScanWhenUserIdIsNull()
+    {
+        [$service, $uploadDir] = $this->makeServiceWithUploadDir();
+        mkdir($uploadDir . '/user1');
+        file_put_contents($uploadDir . '/user1/chatlog.html', 'contents');
+
+        $resolved = $service->resolveFilepath(null, 'chatlog.html');
+
+        $this->assertNotNull($resolved);
+        $this->assertFalse($resolved['isOwner']);
+        $this->assertEquals(realpath($uploadDir . '/user1/chatlog.html'), $resolved['path']);
+
+        $this->removeDir(dirname($uploadDir));
+    }
 }

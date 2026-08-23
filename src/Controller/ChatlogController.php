@@ -156,59 +156,17 @@ class ChatlogController extends AbstractController
     {
         $user = $this->security->getUser();
         $userId = $user ? $user->getUserIdentifier() : null;
-        
-        // Debug logging
-        error_log("Requested filename: " . $filename);
-        error_log("User ID: " . ($userId ?? 'null'));
-        
-        // Try user's directory first if authenticated
-        $filepath = null;
-        $isOwner = false;
-        if ($userId) {
-            $userFilepath = $this->chatlogService->resolveSafePath($this->chatlogService->getUserDir($userId), $filename);
-            if ($userFilepath !== null) {
-                $filepath = $userFilepath;
-                $isOwner = true;
-                error_log("Using user filepath: " . $userFilepath);
-            }
-        }
 
-        // If not found in user's directory or user is not authenticated,
-        // check all user directories
-        if (!$filepath) {
-            $uploadDir = $this->chatlogService->getUploadDir();
-            if (is_dir($uploadDir)) {
-                $dirs = array_diff(scandir($uploadDir), ['.', '..', 'public']);
-                foreach ($dirs as $dir) {
-                    $potentialPath = $this->chatlogService->resolveSafePath($uploadDir . '/' . $dir, $filename);
-                    error_log("Checking potential path in directory: " . $dir);
-                    if ($potentialPath !== null) {
-                        $filepath = $potentialPath;
-                        error_log("Found file in directory: " . $dir);
-                        break;
-                    }
-                }
-            }
-        }
-
-        // If still not found, check public directory
-        if (!$filepath) {
-            $publicFilepath = $this->chatlogService->resolveSafePath($this->chatlogService->getPublicDir(), $filename);
-            if ($publicFilepath !== null) {
-                $filepath = $publicFilepath;
-                error_log("Using public filepath: " . $publicFilepath);
-            }
-        }
-        
-        if (!$filepath) {
-            error_log("No valid filepath found for: " . $filename);
+        $resolved = $this->chatlogService->resolveFilepath($userId, $filename);
+        if ($resolved === null) {
             throw $this->createNotFoundException('The chatlog file does not exist');
         }
+        $filepath = $resolved['path'];
+        $isOwner = $resolved['isOwner'];
 
         $analysis = $this->chatlogAnalyzer->analyze($filepath);
-        
+
         if (!isset($analysis['totals']['characters'][$character])) {
-            error_log("Character not found: " . $character);
             throw $this->createNotFoundException('Character not found in this chatlog');
         }
 
@@ -233,57 +191,16 @@ class ChatlogController extends AbstractController
     {
         $user = $this->security->getUser();
         $userId = $user ? $user->getUserIdentifier() : null;
-        
-        // Debug logging
-        error_log("Requested filename: " . $filename);
-        error_log("User ID: " . ($userId ?? 'null'));
-        
-        // Try user's directory first if authenticated
-        $filepath = null;
-        $isOwner = false;
-        if ($userId) {
-            $userFilepath = $this->chatlogService->resolveSafePath($this->chatlogService->getUserDir($userId), $filename);
-            if ($userFilepath !== null) {
-                $filepath = $userFilepath;
-                $isOwner = true;
-                error_log("Using user filepath: " . $userFilepath);
-            }
-        }
 
-        // If not found in user's directory or user is not authenticated,
-        // check all user directories
-        if (!$filepath) {
-            $uploadDir = $this->chatlogService->getUploadDir();
-            if (is_dir($uploadDir)) {
-                $dirs = array_diff(scandir($uploadDir), ['.', '..', 'public']);
-                foreach ($dirs as $dir) {
-                    $potentialPath = $this->chatlogService->resolveSafePath($uploadDir . '/' . $dir, $filename);
-                    error_log("Checking potential path in directory: " . $dir);
-                    if ($potentialPath !== null) {
-                        $filepath = $potentialPath;
-                        error_log("Found file in directory: " . $dir);
-                        break;
-                    }
-                }
-            }
-        }
-
-        // If still not found, check public directory
-        if (!$filepath) {
-            $publicFilepath = $this->chatlogService->resolveSafePath($this->chatlogService->getPublicDir(), $filename);
-            if ($publicFilepath !== null) {
-                $filepath = $publicFilepath;
-                error_log("Using public filepath: " . $publicFilepath);
-            }
-        }
-        
-        if (!$filepath) {
-            error_log("No valid filepath found for: " . $filename);
+        $resolved = $this->chatlogService->resolveFilepath($userId, $filename);
+        if ($resolved === null) {
             throw $this->createNotFoundException('The chatlog file does not exist');
         }
+        $filepath = $resolved['path'];
+        $isOwner = $resolved['isOwner'];
 
         $analysis = $this->chatlogAnalyzer->analyze($filepath);
-        
+
         $session = null;
         foreach ($analysis['sessions'] as $s) {
             if ($s['date'] === $date) {
@@ -293,7 +210,6 @@ class ChatlogController extends AbstractController
         }
 
         if (!$session) {
-            error_log("Session not found: " . $date);
             throw $this->createNotFoundException('Session not found in this chatlog');
         }
 
